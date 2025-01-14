@@ -3,7 +3,7 @@ from typing import Optional, Union
 from pydantic import BaseModel, Field
 
 
-class NodeType(enum.Enum):
+class NodeType(enum.StrEnum):
     SOURCE_UNIT = "SourceUnit"
     BLOCK = "Block"
     PRAGMA_DIRECTIVE = "PragmaDirective"
