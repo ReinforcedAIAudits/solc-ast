@@ -2,7 +2,7 @@ import enum
 from typing import Dict, List, Optional, TypeAlias, Union
 from pydantic import BaseModel, Field
 
-from models.base_ast_models import ExpressionBase, NodeBase, TypeBase, TypeDescriptions
+from src.models.base_ast_models import ExpressionBase, NodeBase, TypeBase, TypeDescriptions
 
 ASTNode = Union[
     "PragmaDirective",

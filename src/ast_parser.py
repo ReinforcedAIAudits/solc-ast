@@ -1,5 +1,5 @@
 from typing import Union
-from models.ast_models import (
+from src.models.ast_models import (
     ArrayTypeName,
     Assignment,
     Block,
@@ -56,8 +56,8 @@ from models.ast_models import (
     VariableDeclarationStatement,
     WhileStatement,
 )
-import models.ast_models as ast_models
-from models.base_ast_models import NodeType
+import src.models.ast_models as ast_models
+from src.models.base_ast_models import NodeType
 
 
 def parse_literal(node: Literal, spaces_count: int = 0) -> str:
@@ -255,7 +255,7 @@ def parse_ast_node(node: ast_models.ASTNode, spaces_count: int = 0):
 
 
 def parse_expression_statement(node: ExpressionStatement, spaces_count: int = 0) -> str:
-    result += f"{' ' * (spaces_count)}{parse_ast_node(node.expression)};\n"
+    return f"{' ' * (spaces_count)}{parse_ast_node(node.expression)};\n"
 
 
 def build_function_header(node: FunctionDefinition, spaces_count: int = 0) -> str:
@@ -417,7 +417,7 @@ def parse_for_statement(node: ForStatement, spaces_count: int = 0) -> str:
         result += f"{parse_ast_node(node.loop_expression)}"
     result += f") {{\n"
     spaces_count += 4
-    result += parse_statement(node.body, spaces_count)
+    result += parse_ast_node(node.body, spaces_count)
     spaces_count -= 4
     result += f"{' ' * spaces_count}}}\n"
     return result
@@ -482,7 +482,7 @@ def parse_contract_definition(node: ContractDefinition, spaces_count: int = 0) -
 def parse_while_statement(node: WhileStatement, spaces_count: int = 0) -> str:
     result = f"{' ' * spaces_count}while ({parse_ast_node(node.condition)}) {{\n"
     spaces_count += 4
-    result += parse_statement(node.body, spaces_count)
+    result += parse_ast_node(node.body, spaces_count)
     spaces_count -= 4
     result += f"{' ' * spaces_count}}}\n"
     return result
@@ -491,13 +491,13 @@ def parse_while_statement(node: WhileStatement, spaces_count: int = 0) -> str:
 def parse_if_statement(node: IfStatement, spaces_count: int = 0) -> str:
     result = f"{' ' * spaces_count}if ({parse_ast_node(node.condition)}) {{\n"
     spaces_count += 4
-    result += parse_statement(node.true_body, spaces_count)
+    result += parse_ast_node(node.true_body, spaces_count)
     spaces_count -= 4
 
     if node.false_body:
         result += f"{' ' * spaces_count}}} else {{\n"
         spaces_count += 4
-        result += parse_statement(node.false_body, spaces_count)
+        result += parse_ast_node(node.false_body, spaces_count)
         spaces_count -= 4
 
     result += f"{' ' * spaces_count}}}\n"
@@ -612,26 +612,10 @@ def parse_try_statement(node: TryStatement, spaces_count: int = 0) -> str:
     return result
 
 
-def parse_statement(node: Statement, spaces_count: int = 0) -> str:
-    match node.node_type:
-        case NodeType.BLOCK:
-            return parse_block(node, spaces_count)
-        case NodeType.IF_STATEMENT:
-            return parse_if_statement(node, spaces_count)
-        case NodeType.WHILE_STATEMENT:
-            return parse_while_statement(node, spaces_count)
-        case NodeType.BREAK:
-            return parse_break_statement(node, spaces_count)
-        case NodeType.TRY_STATEMENT:
-            return parse_try_statement(node, spaces_count)
-        case NodeType.EXPRESSION_STATEMENT:
-            return f"{' ' * spaces_count}{parse_ast_node(node.expression)};\n"
-
-
 def parse_block(node: Block, spaces_count: int = 0) -> str:
     result = ""
     for statement in node.statements:
-        result += parse_statement(statement, spaces_count)
+        result += parse_ast_node(statement, spaces_count)
     return result
 
 
@@ -640,10 +624,6 @@ def parse_ast_to_solidity(ast: SourceUnit) -> str:
     spaces_count = 0
 
     for node in ast.nodes:
-        if node.node_type == NodeType.PRAGMA_DIRECTIVE:
-            code += parse_pragma_directive(node, spaces_count)
-
-        elif node.node_type == NodeType.CONTRACT_DEFINITION:
-            code += parse_contract_definition(node, spaces_count)
+        code += parse_ast_node(node, spaces_count)
 
     return code

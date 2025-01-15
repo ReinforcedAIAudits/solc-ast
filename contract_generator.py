@@ -4,7 +4,7 @@ from typing import Union, Mapping, List, Optional
 from dataclasses import dataclass
 
 from pydantic import ValidationError
-from ast_parser import parse_ast_to_solidity
+from src.ast_parser import parse_ast_to_solidity
 import solcx
 
 from models.ast_models import (
