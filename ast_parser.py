@@ -359,7 +359,6 @@ def parse_statement(node: Statement, spaces_count: int = 0) -> str:
             return parse_try_statement(node, spaces_count)
         case NodeType.EXPRESSION_STATEMENT:
             return f"{' ' * spaces_count}{parse_expression(node.expression)};\n"
-        # Добавьте остальные case по мере необходимости
 
 def parse_block(node: Block, spaces_count: int = 0) -> str:
     result = ""
