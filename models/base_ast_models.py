@@ -9,6 +9,7 @@ class NodeType(enum.StrEnum):
     PRAGMA_DIRECTIVE = "PragmaDirective"
     CONTRACT_DEFINITION = "ContractDefinition"
     FUNCTION_DEFINITION = "FunctionDefinition"
+    FUNCTION_NODE = "FunctionNode"
     VARIABLE_DECLARATION = "VariableDeclaration"
     VARIABLE_DECLARATION_STATEMENT = "VariableDeclarationStatement"
     FUNCTION_CALL = "FunctionCall"
@@ -56,6 +57,7 @@ class NodeType(enum.StrEnum):
     USER_DEFINED_VALUE_TYPE_DEFINITION = "UserDefinedValueTypeDefinition"
     FUNCTION_TYPE_NAME = "FunctionTypeName"
     ARRAY_TYPE_NAME = "ArrayTypeName"
+    OVERRIDE_SPECIFIER = "OverrideSpecifier"    
 
 
 class TypeDescriptions(BaseModel):

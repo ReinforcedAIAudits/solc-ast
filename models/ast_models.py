@@ -4,7 +4,6 @@ from pydantic import BaseModel, Field
 
 from models.base_ast_models import ExpressionBase, NodeBase, TypeBase, TypeDescriptions
 
-
 ASTNode = Union[
     "PragmaDirective",
     "SourceUnit",
@@ -15,6 +14,7 @@ ASTNode = Union[
     "ParameterList",
     "OverrideSpecifier",
     "FunctionDefinition",
+    "FunctionNode",
     "ModifierDefinition",
     "ModifierInvocation",
     "EventDefinition",
@@ -24,7 +24,7 @@ ASTNode = Union[
     "TryCatchClause",
     "Expression",
     "Declaration",
-    "Statement"
+    "Statement",
 ]
 
 Statement = Union[
@@ -446,26 +446,37 @@ class MemberAccess(ExpressionBase):
     member_name: str = Field(alias="memberName")
     member_location: str = Field(alias="memberLocation")
     expression: Expression
-    referenced_declaration: Optional[int] = Field(default=None, alias="referencedDeclaration")
+    referenced_declaration: Optional[int] = Field(
+        default=None, alias="referencedDeclaration"
+    )
 
 
 class IndexAccess(ExpressionBase):
     base_expression: Expression = Field(alias="baseExpression")
     index_expression: Expression = Field(alias="indexExpression")
 
+
 class IndexRangeAccess(ExpressionBase):
     base_expression: Expression = Field(alias="baseExpression")
-    start_expression: Optional[Expression] = Field(default=None, alias="startExpression")
+    start_expression: Optional[Expression] = Field(
+        default=None, alias="startExpression"
+    )
     end_expression: Optional[Expression] = Field(default=None, alias="endExpression")
 
 
 class Identifier(TypeBase):
     name: str
-    referenced_declaration: Optional[int] = Field(default=None, alias="referencedDeclaration")
-    overloaded_declarations: Optional[List[int]] = Field(default=None, alias="overloadedDeclarations")
+    referenced_declaration: Optional[int] = Field(
+        default=None, alias="referencedDeclaration"
+    )
+    overloaded_declarations: Optional[List[int]] = Field(
+        default=None, alias="overloadedDeclarations"
+    )
+
 
 class ElementaryTypeNameExpression(ExpressionBase):
     type_name: ElementaryTypeName = Field(alias="typeName")
+
 
 class Literal(ExpressionBase):
     kind: str
