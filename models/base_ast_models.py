@@ -31,6 +31,7 @@ class NodeType(enum.StrEnum):
     STRUCT_DEFINITION = "StructDefinition"
     MAPPING = "Mapping"
     ELEMENTARY_TYPE_NAME_EXPRESSION = "ElementaryTypeNameExpression"
+    
 
 
 class TypeDescriptions(BaseModel):
