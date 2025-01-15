@@ -1,6 +1,7 @@
 from typing import Mapping, Union
 from models.ast_models import (
     Assignment,
+    ContractDefinition,
     Literal,
     BinaryOperation,
     ElementaryTypeName,
@@ -231,7 +232,7 @@ def parse_pragma_directive(node: PragmaDirective, spaces_count: int = 0) -> str:
     return f"{' ' * spaces_count}pragma {node.literals[0]} {pragma_str};\n\n"
 
 
-def parse_contract_definition(node: SourceUnit, spaces_count: int = 0) -> str:
+def parse_contract_definition(node: ContractDefinition, spaces_count: int = 0) -> str:
     code = f"contract {node.name} {{\n"
     spaces_count = 4
     for contract_node in node.nodes:
@@ -246,6 +247,125 @@ def parse_contract_definition(node: SourceUnit, spaces_count: int = 0) -> str:
     code += "}"
 
     return code
+
+def parse_break_statement(node: Break, spaces_count: int = 0) -> str:
+    return f"{' ' * spaces_count}break;\n"
+
+def parse_while_statement(node: WhileStatement, spaces_count: int = 0) -> str:
+    result = f"{' ' * spaces_count}while ({parse_expression(node.condition)}) {{\n"
+    spaces_count += 4
+    result += parse_statement(node.body, spaces_count)
+    spaces_count -= 4
+    result += f"{' ' * spaces_count}}}\n"
+    return result
+
+def parse_if_statement(node: IfStatement, spaces_count: int = 0) -> str:
+    result = f"{' ' * spaces_count}if ({parse_expression(node.condition)}) {{\n"
+    spaces_count += 4
+    result += parse_statement(node.true_body, spaces_count)
+    spaces_count -= 4
+    
+    if node.false_body:
+        result += f"{' ' * spaces_count}}} else {{\n"
+        spaces_count += 4
+        result += parse_statement(node.false_body, spaces_count)
+        spaces_count -= 4
+    
+    result += f"{' ' * spaces_count}}}\n"
+    return result
+
+def parse_using_for_directive(node: UsingForDirective, spaces_count: int = 0) -> str:
+    result = f"{' ' * spaces_count}using "
+    
+    if node.library_name:
+        result += parse_identifier_path(node.library_name)
+        
+    if node.function_list:
+        funcs = [parse_function_node(f) for f in node.function_list]
+        result += f"{{{', '.join(funcs)}}}"
+        
+    result += " for "
+    
+    if node.type_name:
+        result += parse_type_name(node.type_name)
+    else:
+        result += "*"
+        
+    if node.global_:
+        result += " global"
+        
+    return result + ";\n"
+
+def parse_function_node(node: FunctionNode) -> str:
+    if node.function:
+        return parse_identifier_path(node.function)
+    elif node.operator:
+        return node.operator
+    return ""
+
+def parse_identifier_path(node: IdentifierPath) -> str:
+    return node.name
+
+def parse_inheritance_specifier(node: InheritanceSpecifier) -> str:
+    result = parse_identifier_path(node.base_name)
+    if node.arguments:
+        args = [parse_expression(arg) for arg in node.arguments]
+        result += f"({', '.join(args)})"
+    return result
+
+def parse_enum_definition(node: EnumDefinition, spaces_count: int = 0) -> str:
+    result = f"{' ' * spaces_count}enum {node.name} {{\n"
+    spaces_count += 4
+    members = [f"{' ' * spaces_count}{member.name}" for member in node.members]
+    result += ",\n".join(members)
+    spaces_count -= 4
+    result += f"\n{' ' * spaces_count}}}\n"
+    return result
+
+def parse_try_catch_clause(node: TryCatchClause, spaces_count: int = 0) -> str:
+    result = f"{' ' * spaces_count}catch "
+    if node.parameters:
+        result += f"({parse_parameter_list(node.parameters)}) "
+    result += "{\n"
+    spaces_count += 4
+    result += parse_block(node.block, spaces_count)
+    spaces_count -= 4
+    result += f"{' ' * spaces_count}}}\n"
+    return result
+
+def parse_try_statement(node: TryStatement, spaces_count: int = 0) -> str:
+    result = f"{' ' * spaces_count}try "
+    if node.external_call:
+        result += parse_expression(node.external_call)
+    result += " {\n"
+    
+    for clause in node.clauses:
+        result += parse_try_catch_clause(clause, spaces_count)
+        
+    result += f"{' ' * spaces_count}}}\n"
+    return result
+
+def parse_statement(node: Statement, spaces_count: int = 0) -> str:
+    match node.node_type:
+        case NodeType.BLOCK:
+            return parse_block(node, spaces_count)
+        case NodeType.IF_STATEMENT:
+            return parse_if_statement(node, spaces_count)
+        case NodeType.WHILE_STATEMENT:
+            return parse_while_statement(node, spaces_count)
+        case NodeType.BREAK:
+            return parse_break_statement(node, spaces_count)
+        case NodeType.TRY_STATEMENT:
+            return parse_try_statement(node, spaces_count)
+        case NodeType.EXPRESSION_STATEMENT:
+            return f"{' ' * spaces_count}{parse_expression(node.expression)};\n"
+        # Добавьте остальные case по мере необходимости
+
+def parse_block(node: Block, spaces_count: int = 0) -> str:
+    result = ""
+    for statement in node.statements:
+        result += parse_statement(statement, spaces_count)
+    return result
 
 
 def parse_ast_to_solidity(ast: SourceUnit) -> str:

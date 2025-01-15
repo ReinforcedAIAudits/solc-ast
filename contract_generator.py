@@ -2,6 +2,8 @@ from enum import Enum
 import json
 from typing import Union, Mapping, List, Optional
 from dataclasses import dataclass
+
+from pydantic import ValidationError
 from ast_parser import parse_ast_to_solidity
 import solcx
 
@@ -227,7 +229,11 @@ def main():
     with open("contract_ast.json", "w+") as f:
         f.write(json.dumps(ast, indent=2))
 
-    ast_obj_contract = SourceUnit(**ast)
+    try:
+        ast_obj_contract = SourceUnit(**ast)
+    except ValidationError as e:
+        with open("contract.errors.txt", "w+") as f:
+            f.write(str(e))
     contract_source = parse_ast_to_solidity(ast_obj_contract)
 
     with open("restored.example.sol", "w+") as f:
@@ -239,10 +245,13 @@ def main():
     with open("reentrancy_ast.json", "w+") as f:
         f.write(json.dumps(ast_reentrancy, indent=2))
 
-    ast_obj_reentrancy = SourceUnit(
+    try:
+        ast_obj_reentrancy = SourceUnit(
         **ast_reentrancy
     )
-
+    except ValidationError as e:
+        with open("vulnerability.errors.txt", "w+") as f:
+            f.write(str(e))
     contract_source = parse_ast_to_solidity(ast_obj_reentrancy)
 
     variables_of_source = get_contract_variables(ast_obj_contract)
