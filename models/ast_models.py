@@ -125,7 +125,7 @@ class PragmaDirective(NodeBase):
 class ImportDirective(NodeBase):
     file: str
     source_unit: Optional[SourceUnit] = Field(default=None, alias="sourceUnit")
-    scope: Optional[ASTNode] = Field(default=None)
+    scope: Optional[int] = Field(default=None)
     absolute_path: Optional[str] = Field(default=None, alias="absolutePath")
     unit_alias: Optional[str] = Field(default=None, alias="unitAlias")
     symbol_aliases: Optional[Dict] = Field(
@@ -144,13 +144,13 @@ class ContractDefinition(NodeBase):
     used_events: List[int] = Field(alias="usedEvents")
     used_errors: List = Field(alias="usedErrors")
     nodes: List[ASTNode]
-    scope: Optional[ASTNode] = Field(default=None)
+    scope: Optional[int] = Field(default=None)
     canonical_name: Optional[str] = Field(default=None, alias="canonicalName")
     fully_implemented: Optional[bool] = Field(default=None, alias="fullyImplemented")
-    linearized_base_contracts: Optional[Dict] = Field(
+    linearized_base_contracts: Optional[List] = Field(
         default=None, alias="linearizedBaseContracts"
     )  # TODO: Check this type
-    internal_function_ids: Optional[Dict] = Field(
+    internal_function_ids: Optional[List] = Field(
         default=None, alias="internalFunctionIDs"
     )  # TODO: Check this type
 
@@ -158,7 +158,7 @@ class ContractDefinition(NodeBase):
 class IdentifierPath(NodeBase):
     name: str
     name_locations: List[str] = Field(alias="nameLocations")
-    referenced_declaration: Optional[Declaration] = Field(
+    referenced_declaration: Optional[int] = Field(
         default=None, alias="referencedDeclaration"
     )
 
@@ -189,7 +189,7 @@ class StructDefinition(NodeBase):
     documentation: Optional["StructuredDocumentation"] = Field(default=None)
     visibility: str
     members: List["VariableDeclaration"]
-    scope: Optional[ASTNode] = Field(default=None)
+    scope: Optional[int] = Field(default=None)
     canonical_name: Optional[str] = Field(default=None, alias="canonicalName")
 
 
@@ -214,7 +214,7 @@ class UserDefinedValueTypeDefinition(NodeBase):
 
 
 class ParameterList(NodeBase):
-    parameters: List["VariableDeclaration"]
+    parameters: List["VariableDeclaration"] = Field(default_factory=list)
 
 
 class OverrideSpecifier(NodeBase):
@@ -234,7 +234,7 @@ class FunctionDefinition(NodeBase):
     modifiers: List["ModifierInvocation"] = Field(default_factory=list)
     body: Optional["Block"] = Field(default=None)
     implemented: bool
-    scope: Optional[ASTNode] = Field(default=None)
+    scope: Optional[int] = Field(default=None)
     visibility: Optional[str] = Field(default=None)
     function_selector: Optional[str] = Field(default=None, alias="functionSelector")
     base_functions: Optional[Dict] = Field(
@@ -253,7 +253,7 @@ class VariableDeclaration(TypeBase):
     overrides: Optional[OverrideSpecifier] = Field(default=None)
     visibility: str
     value: Optional[Expression] = Field(default=None)
-    scope: Optional[ASTNode] = Field(default=None)
+    scope: Optional[int] = Field(default=None)
     function_selector: Optional[str] = Field(default=None, alias="functionSelector")
     documentation: Optional["StructuredDocumentation"] = Field(default=None)
     indexed: Optional[bool] = Field(default=None)
@@ -306,7 +306,7 @@ class ElementaryTypeName(TypeBase):
 
 class UserDefinedTypeName(TypeBase):
     path_node: IdentifierPath = Field(alias="pathNode")
-    referenced_declaration: Optional[Declaration] = Field(
+    referenced_declaration: Optional[int] = Field(
         default=None, alias="referencedDeclaration"
     )
 
@@ -330,13 +330,6 @@ class Mapping(TypeBase):
 class ArrayTypeName(TypeBase):
     base_type: TypeName = Field(alias="baseType")
     length: Optional[Expression] = Field(default=None)
-
-
-class PathNode(NodeBase):
-    name: str
-    name_locations: List[str] = Field(alias="nameLocations")
-    node_type: str = Field(alias="nodeType")
-    referenced_declaration: int = Field(alias="referencedDeclaration")
 
 
 # TODO InlineAssembly
@@ -396,7 +389,7 @@ class Break(NodeBase):
 
 class Return(NodeBase):
     expression: Optional[Expression] = Field(default=None)
-    function_return_parameters: Optional[ParameterList] = Field(
+    function_return_parameters: Optional[int] = Field(
         default=None, alias="functionReturnParameters"
     )
 
@@ -414,8 +407,8 @@ class RevertStatement(NodeBase):
 
 
 class VariableDeclarationStatement(NodeBase):
-    assignments: List[int] = Field(default_factory=list)
-    declarations: List[VariableDeclaration]
+    assignments: List[Union[int, None]] = Field(default_factory=list)
+    declarations: List[Union[VariableDeclaration, None]]
     initial_value: Expression = Field(alias="initialValue")
 
 
@@ -444,7 +437,7 @@ class UnaryOperation(ExpressionBase):
     prefix: bool
     operator: str
     sub_expression: Expression = Field(alias="subExpression")
-    function: int
+    function: Optional[int] = Field(default=None)
 
 
 class BinaryOperation(ExpressionBase):
@@ -452,7 +445,7 @@ class BinaryOperation(ExpressionBase):
     left_expression: Expression = Field(alias="leftExpression")
     right_expression: Expression = Field(alias="rightExpression")
     common_type: TypeDescriptions = Field(alias="commonType")
-    function: int
+    function: Optional[int] = Field(default=None)
 
 
 class FunctionCall(ExpressionBase):
@@ -478,7 +471,7 @@ class MemberAccess(ExpressionBase):
     member_name: str = Field(alias="memberName")
     member_location: str = Field(alias="memberLocation")
     expression: Expression
-    referencedDeclaration: int = Field(alias="referencedDeclaration")
+    referenced_declaration: Optional[int] = Field(default=None, alias="referencedDeclaration")
 
 
 class IndexAccess(ExpressionBase):

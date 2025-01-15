@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 class NodeType(enum.StrEnum):
     SOURCE_UNIT = "SourceUnit"
-    BLOCK = "Block"
+    BLOCK = "Block" 
     PRAGMA_DIRECTIVE = "PragmaDirective"
     CONTRACT_DEFINITION = "ContractDefinition"
     FUNCTION_DEFINITION = "FunctionDefinition"
@@ -23,6 +23,7 @@ class NodeType(enum.StrEnum):
     IDENTIFIER_PATH = "IdentifierPath"
     MEMBER_ACCESS = "MemberAccess"
     INDEX_ACCESS = "IndexAccess"
+    INDEX_RANGE_ACCESS = "IndexRangeAccess"
     TUPLE_EXPRESSION = "TupleExpression"
     EXPRESSION_STATEMENT = "ExpressionStatement"
     RETURN = "Return"
@@ -31,7 +32,30 @@ class NodeType(enum.StrEnum):
     STRUCT_DEFINITION = "StructDefinition"
     MAPPING = "Mapping"
     ELEMENTARY_TYPE_NAME_EXPRESSION = "ElementaryTypeNameExpression"
-    
+    INHERITANCE_SPECIFIER = "InheritanceSpecifier"
+    USING_FOR_DIRECTIVE = "UsingForDirective"
+    STRUCTURED_DOCUMENTATION = "StructuredDocumentation"
+    MODIFIER_DEFINITION = "ModifierDefinition"
+    MODIFIER_INVOCATION = "ModifierInvocation"
+    ERROR_DEFINITION = "ErrorDefinition"
+    PLACEHOLDER_STATEMENT = "PlaceholderStatement"
+    IF_STATEMENT = "IfStatement"
+    TRY_CATCH_CLAUSE = "TryCatchClause"
+    TRY_STATEMENT = "TryStatement"
+    FOR_STATEMENT = "ForStatement"
+    CONTINUE = "Continue"
+    BREAK = "Break"
+    THROW = "Throw"
+    REVERT_STATEMENT = "RevertStatement"
+    FUNCTION_CALL_OPTIONS = "FunctionCallOptions"
+    NEW_EXPRESSION = "NewExpression"
+    CONDITIONAL = "Conditional"
+    IMPORT_DIRECTIVE = "ImportDirective"
+    ENUM_DEFINITION = "EnumDefinition"
+    ENUM_VALUE = "EnumValue"
+    USER_DEFINED_VALUE_TYPE_DEFINITION = "UserDefinedValueTypeDefinition"
+    FUNCTION_TYPE_NAME = "FunctionTypeName"
+    ARRAY_TYPE_NAME = "ArrayTypeName"
 
 
 class TypeDescriptions(BaseModel):
@@ -43,6 +67,9 @@ class NodeBase(BaseModel):
     id: int
     src: str
     node_type: NodeType = Field(alias="nodeType")
+
+    class Config:
+        extra = 'forbid'
 
 
 class TypeBase(NodeBase):
