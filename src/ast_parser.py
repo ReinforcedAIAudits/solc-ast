@@ -83,7 +83,7 @@ def parse_parameter_list(node: ParameterList, spaces_count: int = 0) -> str:
             if parameter.storage_location != "default"
             else ""
         )
-        var_type = parse_type_name(parameter.type_name)
+        var_type = parse_ast_node(parameter.type_name)
         name = f" {parameter.name}" if parameter.name else ""
         if parameter.node_type == NodeType.VARIABLE_DECLARATION:
             indexed = " indexed" if parameter.indexed else ""
@@ -106,7 +106,7 @@ def parse_function_call(node: FunctionCall, spaces_count: int = 0) -> str:
     arguments = [parse_ast_node(arg) for arg in node.arguments]
 
     if node.kind == "typeConversion":
-        return f"{' ' * spaces_count}{parse_type_name(node.expression.type_name)}({', '.join(arguments)})"
+        return f"{' ' * spaces_count}{parse_ast_node(node.expression.type_name)}({', '.join(arguments)})"
 
     return (
         f"{' ' * spaces_count}{parse_ast_node(node.expression)}({', '.join(arguments)})"
@@ -125,7 +125,7 @@ def parse_variable_declaration(node: VariableDeclaration, spaces_count: int = 0)
     value = ""
     if node.value:
         value = f" = {parse_ast_node(node.value)}"
-    return f"{' ' * spaces_count}{parse_type_name(node.type_name)}{visibility}{storage_location} {node.name}{value}"
+    return f"{' ' * spaces_count}{parse_ast_node(node.type_name)}{visibility}{storage_location} {node.name}{value}"
 
 
 def parse_tuple_expression(node: TupleExpression, spaces_count: int = 0) -> str:
@@ -137,8 +137,8 @@ def parse_tuple_expression(node: TupleExpression, spaces_count: int = 0) -> str:
 def parse_variable_declaration_statement(
     node: VariableDeclarationStatement, spaces_count: int = 0
 ) -> str:
-    left = parse_variable_declaration(node.declarations[0])
-    right = parse_index_access(node.initial_value)
+    left = parse_ast_node(node.declarations[0])
+    right = parse_ast_node(node.initial_value)
     return f"{' ' * (spaces_count)}{left} = {right}"
 
 
@@ -255,7 +255,7 @@ def parse_ast_node(node: ast_models.ASTNode, spaces_count: int = 0):
 
 
 def parse_expression_statement(node: ExpressionStatement, spaces_count: int = 0) -> str:
-    return f"{' ' * (spaces_count)}{parse_ast_node(node.expression)};\n"
+    return f"{' ' * (spaces_count)}{parse_ast_node(node.expression)}"
 
 
 def build_function_header(node: FunctionDefinition, spaces_count: int = 0) -> str:
@@ -264,21 +264,21 @@ def build_function_header(node: FunctionDefinition, spaces_count: int = 0) -> st
     mutability = (
         f" {node.state_mutability}" if node.state_mutability != "nonpayable" else ""
     )
-    return_params = parse_parameter_list(node.return_parameters)
+    return_params = parse_ast_node(node.return_parameters)
 
     if return_params:
         return_params = f" returns ({return_params})"
 
     if node.kind == "constructor":
         return (
-            f"{' ' * spaces_count}constructor({parse_parameter_list(node.parameters)})"
+            f"{' ' * spaces_count}constructor({parse_ast_node(node.parameters)})"
         )
     else:
-        return f"{' ' * spaces_count}function {name}({parse_parameter_list(node.parameters)}) {visibility}{mutability}{return_params}"
+        return f"{' ' * spaces_count}function {name}({parse_ast_node(node.parameters)}) {visibility}{mutability}{return_params}"
 
 
 def parse_emit_statement(node: EmitStatement, spaces_count: int = 0) -> str:
-    return f"{' ' * (spaces_count)}emit {parse_function_call(node.event_call)};\n"
+    return f"{' ' * (spaces_count)}emit {parse_ast_node(node.event_call)};\n"
 
 
 def parse_function_definition(node: FunctionDefinition, spaces_count: int = 0) -> str:
@@ -290,22 +290,9 @@ def parse_function_definition(node: FunctionDefinition, spaces_count: int = 0) -
     spaces_count += 4
 
     for statement in node.body.statements:
-        if statement.node_type == NodeType.EXPRESSION_STATEMENT:
-            result += f"{' ' * (spaces_count)}{parse_ast_node(statement.expression)};\n"
-
-        elif statement.node_type == NodeType.EMIT_STATEMENT:
-            result += f"{' ' * (spaces_count)}emit {parse_function_call(statement.event_call)};\n"
-
-        elif statement.node_type == NodeType.VARIABLE_DECLARATION_STATEMENT:
-            result += (
-                f"{parse_variable_declaration_statement(statement, spaces_count)};\n"
-            )
-
-        elif statement.node_type == NodeType.RETURN:
-            if statement.expression:
-                result += f"{' ' * (spaces_count)}return {parse_ast_node(statement.expression)};\n"
-            else:
-                result += f"{' ' * (spaces_count)}return;\n"
+        result += parse_ast_node(statement, spaces_count)
+        if not result.endswith(";\n") and not result.endswith("}\n"):
+            result += ";\n"
 
     spaces_count -= 4
     result += f"{' ' * spaces_count}}}\n\n"
@@ -333,7 +320,9 @@ def parse_array_type_name(node: ArrayTypeName, spaces_count: int = 0) -> str:
 
 
 def parse_elementary_type_name(node: ElementaryTypeName, spaces_count: int = 0) -> str:
-    return f"{' ' * spaces_count}{node.name}"  # if node.name == "address" and node.state_mutability == "payable": return node.state_mutability
+    if node.name == "address" and node.state_mutability == "payable":
+        return f"{' ' * spaces_count}{node.state_mutability}"
+    return f"{' ' * spaces_count}{node.name}"
 
 
 def parse_elementary_type_name_expression(
@@ -422,30 +411,13 @@ def parse_for_statement(node: ForStatement, spaces_count: int = 0) -> str:
     result += f"{' ' * spaces_count}}}\n"
     return result
 
-
-def parse_type_name(
-    node: Union[Mapping, ElementaryTypeName, UserDefinedTypeName]
-) -> str:
-    match node.node_type:
-        case NodeType.MAPPING:
-            key_type = node.key_type.name
-            value_type = parse_type_name(node.value_type)
-            return f"mapping({key_type} => {value_type})"
-        case NodeType.USER_DEFINED_TYPE_NAME:
-            return node.path_node.name
-        case _:
-            if node.name == "address" and node.state_mutability == "payable":
-                return node.state_mutability
-            return node.name
-
-
 def parse_struct_definition(node: StructDefinition, spaces_count: int = 0) -> str:
     spaces = " " * spaces_count
     code = f"{' ' * spaces_count}struct {node.name} {{\n"
     spaces_count += 4
     for member in node.members:
         code += (
-            f"{' ' * spaces_count}{parse_type_name(member.type_name)} {member.name};\n"
+            f"{' ' * spaces_count}{parse_ast_node(member.type_name)} {member.name};\n"
         )
     spaces_count -= 4
 
@@ -454,7 +426,7 @@ def parse_struct_definition(node: StructDefinition, spaces_count: int = 0) -> st
 
 
 def parse_event_definition(node: EventDefinition, spaces_count: int = 0) -> str:
-    return f"{' ' * spaces_count}event {node.name}({parse_parameter_list(node.parameters)});\n"
+    return f"{' ' * spaces_count}event {node.name}({parse_ast_node(node.parameters)});\n"
 
 
 def parse_pragma_directive(node: PragmaDirective, spaces_count: int = 0) -> str:
@@ -466,14 +438,10 @@ def parse_contract_definition(node: ContractDefinition, spaces_count: int = 0) -
     code = f"contract {node.name} {{\n"
     spaces_count = 4
     for contract_node in node.nodes:
-        if contract_node.node_type == NodeType.STRUCT_DEFINITION:
-            code += parse_struct_definition(contract_node, spaces_count)
-        elif contract_node.node_type == NodeType.EVENT_DEFINITION:
-            code += parse_event_definition(contract_node, spaces_count)
-        elif contract_node.node_type == NodeType.VARIABLE_DECLARATION:
+        if contract_node.node_type == NodeType.VARIABLE_DECLARATION:
             code += f"{parse_variable_declaration(contract_node, spaces_count)};\n"
-        elif contract_node.node_type == NodeType.FUNCTION_DEFINITION:
-            code += parse_function_definition(contract_node, spaces_count)
+            continue
+        code += parse_ast_node(contract_node, spaces_count)
     code += "}"
 
     return code
@@ -508,16 +476,16 @@ def parse_using_for_directive(node: UsingForDirective, spaces_count: int = 0) ->
     result = f"{' ' * spaces_count}using "
 
     if node.library_name:
-        result += parse_identifier_path(node.library_name)
+        result += parse_ast_node(node.library_name)
 
     if node.function_list:
-        funcs = [parse_function_node(f) for f in node.function_list]
+        funcs = [parse_ast_node(f) for f in node.function_list]
         result += f"{{{', '.join(funcs)}}}"
 
     result += " for "
 
     if node.type_name:
-        result += parse_type_name(node.type_name)
+        result += parse_ast_node(node.type_name)
     else:
         result += "*"
 
@@ -536,7 +504,7 @@ def parse_override_specifier(
 
 
 def parse_modifier_definition(node: ModifierDefinition, spaces_count: int = 0) -> str:
-    result = f"{' ' * spaces_count}modifier {node.name}({parse_parameter_list(node.parameters)}) {{\n"
+    result = f"{' ' * spaces_count}modifier {node.name}({parse_ast_node(node.parameters)}) {{\n"
     spaces_count += 4
     result += parse_ast_node(node.body, spaces_count)
     spaces_count -= 4
@@ -554,12 +522,12 @@ def parse_modifier_invocation(node: ModifierInvocation, spaces_count: int = 0) -
 
 
 def parse_error_definition(node: ErrorDefinition, spaces_count: int = 0) -> str:
-    return f"{' ' * spaces_count}error {node.name}({parse_parameter_list(node.parameters)});\n"
+    return f"{' ' * spaces_count}error {node.name}({parse_ast_node(node.parameters)});\n"
 
 
 def parse_function_node(node: FunctionNode) -> str:
     if node.function:
-        return parse_identifier_path(node.function)
+        return parse_ast_node(node.function)
     elif node.operator:
         return node.operator
     return ""
@@ -570,7 +538,7 @@ def parse_identifier_path(node: IdentifierPath) -> str:
 
 
 def parse_inheritance_specifier(node: InheritanceSpecifier) -> str:
-    result = parse_identifier_path(node.base_name)
+    result = parse_ast_node(node.base_name)
     if node.arguments:
         args = [parse_ast_node(arg) for arg in node.arguments]
         result += f"({', '.join(args)})"
@@ -590,10 +558,10 @@ def parse_enum_definition(node: EnumDefinition, spaces_count: int = 0) -> str:
 def parse_try_catch_clause(node: TryCatchClause, spaces_count: int = 0) -> str:
     result = f"{' ' * spaces_count}catch "
     if node.parameters:
-        result += f"({parse_parameter_list(node.parameters)}) "
+        result += f"({parse_ast_node(node.parameters)}) "
     result += "{\n"
     spaces_count += 4
-    result += parse_block(node.block, spaces_count)
+    result += parse_ast_node(node.block, spaces_count)
     spaces_count -= 4
     result += f"{' ' * spaces_count}}}\n"
     return result
@@ -606,7 +574,7 @@ def parse_try_statement(node: TryStatement, spaces_count: int = 0) -> str:
     result += " {\n"
 
     for clause in node.clauses:
-        result += parse_try_catch_clause(clause, spaces_count)
+        result += parse_ast_node(clause, spaces_count)
 
     result += f"{' ' * spaces_count}}}\n"
     return result
@@ -616,6 +584,8 @@ def parse_block(node: Block, spaces_count: int = 0) -> str:
     result = ""
     for statement in node.statements:
         result += parse_ast_node(statement, spaces_count)
+        if not result.endswith(";\n") and not result.endswith("}\n"):
+            result += ";\n"
     return result
 
 
