@@ -33,7 +33,7 @@ from models.ast_models import (
 from models.base_ast_models import NodeType
 
 FILE_NAME = "contract.example.sol"
-CONTRACT_NAME = "GalacticHub"
+CONTRACT_NAME = "GalacticBank"
 
 
 def compile_contract_from_file(filename: str, contract_name: str):
@@ -154,8 +154,40 @@ def rename_variable_in_contract(ast: SourceUnit, old_name: str, new_name: str):
 
     return ast
 
+def change_function_in_contract(
+    ast: SourceUnit, new_function: FunctionDefinition
+):
+    for node in ast.nodes:
+        if node.node_type == NodeType.CONTRACT_DEFINITION:
+            for idx, contract_node in enumerate(node.nodes):
+                if contract_node.node_type == NodeType.FUNCTION_DEFINITION:
+                    if contract_node.kind == new_function.kind and contract_node.name == new_function.name:
+                        node.nodes[idx] = new_function
+                        return ast
+    raise ValueError("Function not found in contract")
+    
 
-def apppend_node_to_contract(
+def check_function_in_contract(ast: SourceUnit, function_name: str):
+    for node in ast.nodes:
+        if node.node_type == NodeType.CONTRACT_DEFINITION:
+            for contract_node in node.nodes:
+                if contract_node.node_type == NodeType.FUNCTION_DEFINITION:
+                    if contract_node.name == function_name:
+                        return True
+    return False
+
+def check_storage_in_contract(ast: SourceUnit, storage_name: str):
+    for node in ast.nodes:
+        if node.node_type == NodeType.CONTRACT_DEFINITION:
+            for contract_node in node.nodes:
+                if contract_node.node_type == NodeType.VARIABLE_DECLARATION:
+                    if contract_node.name == storage_name:
+                        return True
+    return False
+
+
+
+def append_node_to_contract(
     ast: SourceUnit, node: Union[FunctionDefinition, VariableDeclaration]
 ):
     for ast_node in ast.nodes:
@@ -201,12 +233,15 @@ def main():
     with open("restored.example.sol", "w+") as f:
         f.write(contract_source)
 
-    ast_obj_reentrancy = SourceUnit(
-        **compile_contract_from_file("reentrancy.example.sol", "Reentrancy")
-    )
+
+    ast_reentrancy = compile_contract_from_file("vulnerabilities/wallet.sol", "Wallet")
 
     with open("reentrancy_ast.json", "w+") as f:
-        f.write(json.dumps(ast_obj_reentrancy.model_dump(), indent=2))
+        f.write(json.dumps(ast_reentrancy, indent=2))
+
+    ast_obj_reentrancy = SourceUnit(
+        **ast_reentrancy
+    )
 
     contract_source = parse_ast_to_solidity(ast_obj_reentrancy)
 
@@ -216,32 +251,42 @@ def main():
     variables_of_reentrancy = get_contract_variables(ast_obj_reentrancy)
     functions_of_reentrancy = get_contract_functions(ast_obj_reentrancy)
 
+    
     for variable in variables_of_reentrancy:
-        if variable.name not in [var.name for var in variables_of_source]:
-            ast_obj_contract = apppend_node_to_contract(ast_obj_contract, variable)
-        else:
-            old_name = variable.name
-            variable.name = (
-                f"Test{variable.name}"  ## TODO - add a check for name uniqueness
-            )
-            rename_variable_in_contract(ast_obj_reentrancy, old_name, variable.name)
-            ast_obj_contract = apppend_node_to_contract(ast_obj_contract, variable)
+        if not check_storage_in_contract(ast_obj_contract, variable.name):
+            ast_obj_contract = append_node_to_contract(ast_obj_contract, variable)
 
     for function in functions_of_reentrancy:
-        if function.kind == "constructor":
-            source_constructor = next(
-                func for func in functions_of_source if func.kind == "constructor"
-            )
-            if source_constructor:
-                source_constructor.body.statements += function.body.statements
-            else:
-                ast_obj_contract = apppend_node_to_contract(ast_obj_contract, function)
-            continue
-        if function in functions_of_source:
-            function.name = (
-                f"Test{function.name}"  ## TODO - add a check for name uniqueness
-            )
-        ast_obj_contract = apppend_node_to_contract(ast_obj_contract, function)
+        if check_function_in_contract(ast_obj_contract, function.name):
+            change_function_in_contract(ast_obj_contract, function)
+        else:
+            ast_obj_contract = append_node_to_contract(ast_obj_contract, function) # TODO - max tries or logs
+
+    # for variable in variables_of_reentrancy:
+    #     if variable.name not in [var.name for var in variables_of_source]:
+    #         ast_obj_contract = apppend_node_to_contract(ast_obj_contract, variable)
+    #     else:
+    #         old_name = variable.name
+    #         variable.name = f"Test{variable.name}"  ## TODO - add a check for name uniqueness
+    #         rename_variable_in_contract(ast_obj_reentrancy, old_name, variable.name)
+    #         ast_obj_contract = apppend_node_to_contract(ast_obj_contract, variable)
+            
+
+    # for function in functions_of_reentrancy:
+    #     if function.kind == "constructor":
+    #         source_constructor = next(
+    #             func for func in functions_of_source if func.kind == "constructor"
+    #         )
+    #         if source_constructor:
+    #             source_constructor.body.statements += function.body.statements
+    #         else:
+    #             ast_obj_contract = apppend_node_to_contract(ast_obj_contract, function)
+    #         continue
+    #     if function in functions_of_source:
+    #         function.name = (
+    #             f"Test{function.name}"  ## TODO - add a check for name uniqueness
+    #         )
+    #     ast_obj_contract = apppend_node_to_contract(ast_obj_contract, function)
 
     contract_source = parse_ast_to_solidity(ast_obj_contract)
 
