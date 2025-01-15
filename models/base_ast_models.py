@@ -1,5 +1,5 @@
 import enum
-from typing import Optional, Union
+from typing import List, Optional, Union
 from pydantic import BaseModel, Field
 
 
@@ -46,7 +46,9 @@ class NodeBase(BaseModel):
 
 
 class TypeBase(NodeBase):
-    type_descriptions: TypeDescriptions = Field(alias="typeDescriptions")
+    type_descriptions: Optional[TypeDescriptions] = Field(default=None, alias="typeDescriptions")
+    argument_types: Optional[List[TypeDescriptions]] = Field(default=None, alias="argumentTypes")
+
 
 
 class ExpressionBase(TypeBase):

@@ -7,40 +7,26 @@ from models.base_ast_models import ExpressionBase, NodeBase, TypeBase, TypeDescr
 
 ASTNode = Union[
     "PragmaDirective",
-    "ImportDirective",
-    "ContractDefinition",
     "SourceUnit",
     "StructuredDocumentation",
     "IdentifierPath",
     "InheritanceSpecifier",
     "UsingForDirective",
-    "StructDefinition",
-    "EnumDefinition",
-    "EnumValue",
-    "UserDefinedValueTypeDefinition",
     "ParameterList",
-    "CallableDeclaration",
     "OverrideSpecifier",
     "FunctionDefinition",
-    "VariableDeclaration",
     "ModifierDefinition",
     "ModifierInvocation",
     "EventDefinition",
     "ErrorDefinition",
-    "MagicVariableDeclaration",
     "TypeName",
-    "ElementaryTypeName",
-    "UserDefinedTypeName",
-    "FunctionTypeName",
-    "Mapping",
-    "ArrayTypeName",
-    "InlineAssembly",
+    # "InlineAssembly",
     "Block",
     "PlaceholderStatement",
     "IfStatement",
     "TryCatchClause",
     "TryStatement",
-    "BreakableStatement",
+    # "BreakableStatement",
     "ForStatement",
     "Continue",
     "Return",
@@ -64,33 +50,93 @@ ASTNode = Union[
     "Identifier",
     "ElementaryTypeNameExpression",
     "Literal",
-    "TypeClassDefinition",
-    "TypeClassInstantation",
-    "TypeDefinition",
-    "TypeClassName",
-    "Builtin",
-    "ForAllQuantifier",
+    "Declaration",
+]
+
+Statement = Union[
+    "Block",
+    "PlaceholderStatement",
+    "IfStatement",
+    "TryStatement",
+    "Continue",
+    "Break",
+    "Return",
+    "Throw",
+    "RevertStatement",
+    "EmitStatement",
+    "VariableDeclarationStatement",
+    "ExpressionStatement",
+]
+
+Declaration = Union[
+    "ImportDirective",
+    "ContractDefinition",
+    "StructDefinition",
+    "EnumDefinition",
+    "EnumValue",
+    "UserDefinedValueTypeDefinition",
+    "VariableDeclaration",
+]
+
+Expression = Union[
+    "Conditional",
+    "Assignment",
+    "TupleExpression",
+    "UnaryOperation",
+    "BinaryOperation",
+    "FunctionCall",
+    "FunctionCallOptions",
+    "NewExpression",
+    "MemberAccess",
+    "IndexAccess",
+    "IndexRangeAccess",
+    "PrimaryExpression",
+]
+
+PrimaryExpression = Union[
+    "Literal",
+    "Identifier",
+    "ElementaryTypeNameExpression",
+]
+
+TypeName = Union[
+    "ElementaryTypeName",
+    "UserDefinedTypeName",
+    "FunctionTypeName",
+    "Mapping",
+    "ArrayTypeName",
 ]
 
 
+class SourceUnit(NodeBase):
+    license: Optional[str] = Field(default=None)
+    nodes: List[ASTNode]
+    experimental_solidity: Optional[bool] = Field(
+        default=None, alias="experimentalSolidity"
+    )
+    exported_symbols: Dict[str, List[int]] = Field(alias="exportedSymbols")
+    absolute_path: Optional[str] = Field(default=None, alias="absolutePath")
+
+
 class PragmaDirective(NodeBase):
-    tokens: Optional[List[int]] = Field(default=None)
     literals: List[str]
 
 
 class ImportDirective(NodeBase):
-    symbol: "Identifier"
-    alias: Optional[str] = Field(default=None)
-
-
-class StructuredDocumentation(NodeBase):
-    text: str
+    file: str
+    source_unit: Optional[SourceUnit] = Field(default=None, alias="sourceUnit")
+    scope: Optional[ASTNode] = Field(default=None)
+    absolute_path: Optional[str] = Field(default=None, alias="absolutePath")
+    unit_alias: Optional[str] = Field(default=None, alias="unitAlias")
+    symbol_aliases: Optional[Dict] = Field(
+        default=None, alias="symbolAliases"
+    )  # TODO Check this type
 
 
 class ContractDefinition(NodeBase):
     name: str
     name_location: str = Field(alias="nameLocation")
-    documentation: Optional[StructuredDocumentation] = Field(default=None)
+    documentation: Optional["StructuredDocumentation"] = Field(default=None)
     contract_kind: str = Field(alias="contractKind")
     abstract: bool
     base_contracts: List["InheritanceSpecifier"] = Field(alias="baseContracts")
@@ -98,36 +144,192 @@ class ContractDefinition(NodeBase):
     used_events: List[int] = Field(alias="usedEvents")
     used_errors: List = Field(alias="usedErrors")
     nodes: List[ASTNode]
-    scope: int
+    scope: Optional[ASTNode] = Field(default=None)
     canonical_name: Optional[str] = Field(default=None, alias="canonicalName")
     fully_implemented: Optional[bool] = Field(default=None, alias="fullyImplemented")
-    linearized_base_contracts: Optional[Dict] = Field(default=None, alias="linearizedBaseContracts")
-    internal_function_ids: Optional[Dict] = Field(default=None,alias="internalFunctionIDs")
+    linearized_base_contracts: Optional[Dict] = Field(
+        default=None, alias="linearizedBaseContracts"
+    )  # TODO: Check this type
+    internal_function_ids: Optional[Dict] = Field(
+        default=None, alias="internalFunctionIDs"
+    )  # TODO: Check this type
 
 
 class IdentifierPath(NodeBase):
-    path: List[str]
-    path_locations: List[str] = Field(alias="pathLocations")
+    name: str
+    name_locations: List[str] = Field(alias="nameLocations")
+    referenced_declaration: Optional[Declaration] = Field(
+        default=None, alias="referencedDeclaration"
+    )
 
 
 class InheritanceSpecifier(NodeBase):
-    arguments: List[int]
     base_name: Union[IdentifierPath] = Field(alias="baseName")
+    arguments: List[Expression] = Field(default_factory=list)
 
 
-DefaultMember = Union[
-    "Identifier",
-    "Literal",
-    "UnaryOperation",
-    "BinaryOperation",
-    "MemberAccess",
-    "IndexAccess",
-]
+class FunctionNode(BaseModel):
+    function: Optional[IdentifierPath] = Field(default=None)
+    definition: Optional[IdentifierPath] = Field(default=None)
+    operator: Optional[str] = Field(default=None)
+
+
+class UsingForDirective(NodeBase):
+    type_name: Optional[TypeName] = Field(default=None, alias="typeName")
+    library_name: Optional[IdentifierPath] = Field(default=None, alias="libraryName")
+    global_: bool = Field(alias="global")
+    function_list: Optional[List[FunctionNode]] = Field(
+        default=None, alias="functionList"
+    )
+
+
+class StructDefinition(NodeBase):
+    name: str
+    name_location: str = Field(alias="nameLocation")
+    documentation: Optional["StructuredDocumentation"] = Field(default=None)
+    visibility: str
+    members: List["VariableDeclaration"]
+    scope: Optional[ASTNode] = Field(default=None)
+    canonical_name: Optional[str] = Field(default=None, alias="canonicalName")
+
+
+class EnumDefinition(NodeBase):
+    name: str
+    name_location: str = Field(alias="nameLocation")
+    documentation: Optional["StructuredDocumentation"] = Field(default=None)
+    members: List["EnumValue"]
+    canonical_name: Optional[str] = Field(default=None, alias="canonicalName")
+
+
+class EnumValue(NodeBase):
+    name: str
+    name_location: str = Field(alias="nameLocation")
+
+
+class UserDefinedValueTypeDefinition(NodeBase):
+    name: str
+    name_location: str = Field(alias="nameLocation")
+    underlying_type: TypeName = Field(alias="underlyingType")
+    canonical_name: Optional[str] = Field(default=None, alias="canonicalName")
+
+
+class ParameterList(NodeBase):
+    parameters: List["VariableDeclaration"]
+
+
+class OverrideSpecifier(NodeBase):
+    overrides: List[IdentifierPath]
+
+
+class FunctionDefinition(NodeBase):
+    name: str
+    name_location: str = Field(alias="nameLocation")
+    documentation: Optional["StructuredDocumentation"] = Field(default=None)
+    kind: str
+    state_mutability: str = Field(alias="stateMutability")
+    virtual: bool = Field(default=False)
+    overrides: Optional[OverrideSpecifier] = Field(default=None)
+    parameters: ParameterList
+    return_parameters: ParameterList = Field(alias="returnParameters")
+    modifiers: List["ModifierInvocation"] = Field(default_factory=list)
+    body: Optional["Block"] = Field(default=None)
+    implemented: bool
+    scope: Optional[ASTNode] = Field(default=None)
+    visibility: Optional[str] = Field(default=None)
+    function_selector: Optional[str] = Field(default=None, alias="functionSelector")
+    base_functions: Optional[Dict] = Field(
+        default=None, alias="baseFunctions"
+    )  # TODO: Check this type
+
+
+class VariableDeclaration(TypeBase):
+    name: str
+    name_location: Optional[str] = Field(alias="nameLocation")
+    type_name: TypeName = Field(alias="typeName")
+    constant: bool
+    mutability: str
+    state_variable: bool = Field(alias="stateVariable")
+    storage_location: str = Field(alias="storageLocation")
+    overrides: Optional[OverrideSpecifier] = Field(default=None)
+    visibility: str
+    value: Optional[Expression] = Field(default=None)
+    scope: Optional[ASTNode] = Field(default=None)
+    function_selector: Optional[str] = Field(default=None, alias="functionSelector")
+    documentation: Optional["StructuredDocumentation"] = Field(default=None)
+    indexed: Optional[bool] = Field(default=None)
+    base_functions: Optional[Dict] = Field(
+        default=None, alias="baseFunctions"
+    )  # TODO: Check this type
+
+
+class ModifierDefinition(NodeBase):
+    name: str
+    name_location: str = Field(alias="nameLocation")
+    documentation: Optional["StructuredDocumentation"] = Field(default=None)
+    visibility: str
+    parameters: ParameterList
+    virtual: bool
+    overrides: Optional[OverrideSpecifier] = Field(default=None)
+    body: Optional["Block"] = Field(default=None)
+    base_modifiers: Optional[Dict] = Field(
+        default=None, alias="baseModifiers"
+    )  # TODO: Check this type
+
+
+class ModifierInvocation(NodeBase):
+    modifier_name: IdentifierPath = Field(alias="modifierName")
+    arguments: List[Expression] = Field(default_factory=list)
+    kind: Optional[str]
+
+
+class EventDefinition(NodeBase):
+    name: str
+    name_location: str = Field(alias="nameLocation")
+    documentation: Optional["StructuredDocumentation"] = Field(default=None)
+    parameters: ParameterList
+    anonymous: bool
+    event_selector: Optional[str] = Field(default=None, alias="eventSelector")
+
+
+class ErrorDefinition(NodeBase):
+    name: str
+    name_location: str = Field(alias="nameLocation")
+    documentation: Optional["StructuredDocumentation"] = Field(default=None)
+    parameters: ParameterList
+    error_selector: Optional[str] = Field(default=None, alias="errorSelector")
 
 
 class ElementaryTypeName(TypeBase):
     name: str
     state_mutability: Optional[str] = Field(default=None, alias="stateMutability")
+
+
+class UserDefinedTypeName(TypeBase):
+    path_node: IdentifierPath = Field(alias="pathNode")
+    referenced_declaration: Optional[Declaration] = Field(
+        default=None, alias="referencedDeclaration"
+    )
+
+
+class FunctionTypeName(TypeBase):
+    visibility: str
+    state_mutability: str = Field(alias="stateMutability")
+    parameter_types: List[ParameterList] = Field(alias="parameterTypes")
+    return_parameter_types: List[ParameterList] = Field(alias="returnParameterTypes")
+
+
+class Mapping(TypeBase):
+    key_type: TypeName = Field(alias="keyType")
+    key_name: str = Field(alias="keyName")
+    key_name_location: str = Field(alias="keyNameLocation")
+    value_type: TypeName = Field(alias="valueType")
+    value_name: str = Field(alias="valueName")
+    value_name_location: str = Field(alias="valueNameLocation")
+
+
+class ArrayTypeName(TypeBase):
+    base_type: TypeName = Field(alias="baseType")
+    length: Optional[Expression] = Field(default=None)
 
 
 class PathNode(NodeBase):
@@ -137,213 +339,172 @@ class PathNode(NodeBase):
     referenced_declaration: int = Field(alias="referencedDeclaration")
 
 
-class UserDefinedTypeName(TypeBase):
-    path_node: PathNode = Field(alias="pathNode")
-    referenced_declaration: int = Field(alias="referencedDeclaration")
+# TODO InlineAssembly
 
 
-class Mapping(TypeBase):
-    key_name: str = Field(alias="keyName")
-    key_name_location: str = Field(alias="keyNameLocation")
-    key_type: Union[UserDefinedTypeName, ElementaryTypeName, "Mapping"] = Field(
-        alias="keyType"
+class Block(NodeBase):
+    statements: List[Statement]
+
+
+class PlaceholderStatement(NodeBase):
+    pass
+
+
+class IfStatement(NodeBase):
+    condition: Expression
+    true_body: Statement = Field(alias="trueBody")
+    false_body: Optional[Statement] = Field(default=None, alias="falseBody")
+
+
+class TryCatchClause(NodeBase):
+    error_name: str = Field(alias="errorName")
+    parameters: Optional[ParameterList] = Field(default=None)
+    block: Block
+
+
+class TryStatement(NodeBase):
+    external_call: Optional[Expression] = Field(default=None, alias="externalCall")
+    clauses: List[TryCatchClause]
+
+
+class WhileStatement(NodeBase):  # DoWhileStatement
+    condition: Expression
+    body: Statement
+
+
+class ForStatement(NodeBase):
+    intialization_expression: Optional[Statement] = Field(
+        default=None, alias="initializationExpression"
     )
-    value_name: str = Field(alias="valueName")
-    value_name_location: str = Field(alias="valueNameLocation")
-    value_type: Union[UserDefinedTypeName, ElementaryTypeName, "Mapping"] = Field(
-        alias="valueType"
+    condition: Optional[Expression] = Field(default=None)
+    loop_expression: Optional["ExpressionStatement"] = Field(
+        default=None, alias="loopExpression"
+    )
+    body: Statement
+    is_simple_counter_loop: Optional[bool] = Field(
+        default=None, alias="isSimpleCounterLoop"
     )
 
 
-class VariableDeclaration(TypeBase):
-    constant: bool
-    function_selector: Optional[str] = Field(default=None, alias="functionSelector")
-    mutability: str
-    indexed: Optional[bool] = Field(default=None)
-    name: str
-    name_location: Optional[str] = Field(alias="nameLocation")
-    value: Optional[DefaultMember] = Field(default=None)
-    scope: int
-    state_variable: bool = Field(alias="stateVariable")
-    storage_location: str = Field(alias="storageLocation")
-    type_name: Union[Mapping, ElementaryTypeName, UserDefinedTypeName] = Field(
-        alias="typeName"
-    )
-    visibility: str
+class Continue(NodeBase):
+    pass
 
 
-class ParameterList(NodeBase):
-    parameters: List[VariableDeclaration]
-
-
-class Identifier(TypeBase):
-    name: str
-    overloaded_declarations: List[int] = Field(alias="overloadedDeclarations")
-    referenced_declaration: int = Field(alias="referencedDeclaration")
-
-
-class Literal(ExpressionBase):
-    hex_value: str = Field(alias="hexValue")
-    subdenomination: Optional[str] = Field(default=None)
-    kind: str
-    value: str
-
-
-class UnaryOperation(ExpressionBase):
-    operator: str
-    prefix: bool
-    sub_expression: DefaultMember = Field(alias="subExpression")
-
-
-class BinaryOperation(ExpressionBase):
-    common_type: TypeDescriptions = Field(alias="commonType")
-    left_expression: Union[
-        DefaultMember,
-        "TupleExpression",
-        "FunctionCall",
-    ] = Field(alias="leftExpression")
-    operator: str
-    right_expression: Union[
-        DefaultMember,
-        "TupleExpression",
-        "FunctionCall",
-    ] = Field(alias="rightExpression")
+class Break(NodeBase):
+    pass
 
 
 class Return(NodeBase):
-    function_return_parameters: int = Field(alias="functionReturnParameters")
-    expression: Union[Identifier, Literal]
-
-
-class MemberAccess(ExpressionBase):
-    expression: Union[DefaultMember, "FunctionCall"]
-    member_location: str = Field(alias="memberLocation")
-    member_name: str = Field(alias="memberName")
-    sub_expression: Optional[Identifier] = Field(default=None, alias="subExpression")
-
-
-class IndexAccess(ExpressionBase):
-    base_expression: Union[Identifier, "IndexAccess", MemberAccess] = Field(
-        alias="baseExpression"
-    )
-    index_expression: Union[MemberAccess, Identifier, Literal, "IndexAccess"] = Field(
-        alias="indexExpression"
+    expression: Optional[Expression] = Field(default=None)
+    function_return_parameters: Optional[ParameterList] = Field(
+        default=None, alias="functionReturnParameters"
     )
 
 
-class FunctionCall(ExpressionBase):
-    arguments: List[Union[DefaultMember, "FunctionCall"]]
-    expression: Union[
-        Identifier, MemberAccess, IndexAccess, "ElementaryTypeNameExpression"
-    ]
-    kind: str
-    name_locations: List[str] = Field(alias="nameLocations")
-    names: List[str]
-    try_call: bool = Field(alias="tryCall")
-
-
-class FunctionCallOptions(ExpressionBase):
-    argument_types: List[TypeDescriptions] = Field(alias="argumentTypes")
-    expression: Union[Identifier, MemberAccess, IndexAccess] = Field()
-    names: List[str]
-    options: List[DefaultMember]
+class Throw(NodeBase):
+    pass
 
 
 class EmitStatement(NodeBase):
-    event_call: FunctionCall = Field(alias="eventCall")
+    event_call: "FunctionCall" = Field(alias="eventCall")
 
 
-class Assignment(ExpressionBase):
-    left_hand_side: Optional[Union[Identifier, MemberAccess, IndexAccess]] = Field(
-        default=None, alias="leftHandSide"
-    )
-    operator: str
-    right_hand_side: Union[DefaultMember, FunctionCall, "TupleExpression"] = Field(
-        default=None, alias="rightHandSide"
-    )
-
-
-class ElementaryTypeNameExpression(ExpressionBase):
-    type_name: ElementaryTypeName = Field(alias="typeName")
-    argument_types: List[TypeDescriptions] = Field(alias="argumentTypes")
-
-
-class TupleExpression(ExpressionBase):
-    is_inline_array: bool = Field(alias="isInlineArray")
-    components: List[DefaultMember]
+class RevertStatement(NodeBase):
+    error_call: Optional["FunctionCall"] = Field(default=None, alias="errorCall")
 
 
 class VariableDeclarationStatement(NodeBase):
-    assignments: List[int]
+    assignments: List[int] = Field(default_factory=list)
     declarations: List[VariableDeclaration]
-    initial_value: Union[IndexAccess, MemberAccess, FunctionCall] = Field(
-        alias="initialValue"
-    )
-
-
-Expression = Union[
-    Assignment,
-    UnaryOperation,
-    IndexAccess,
-    BinaryOperation,
-    FunctionCall,
-    TupleExpression,
-    VariableDeclarationStatement,
-    FunctionCallOptions,
-]
+    initial_value: Expression = Field(alias="initialValue")
 
 
 class ExpressionStatement(NodeBase):
     expression: Expression
 
 
-class Block(NodeBase):
-    statements: List[
-        Union[
-            ExpressionStatement,
-            Return,
-            EmitStatement,
-            FunctionCall,
-            VariableDeclarationStatement,
-        ]
-    ]
+class Conditional(ExpressionBase):  # TODO maybe errors
+    condition: Expression
+    true_expression: Expression = Field(alias="trueExpression")
+    false_expression: Expression = Field(alias="falseExpression")
 
 
-class FunctionDefinition(NodeBase):
-    body: Block
-    function_selector: Optional[str] = Field(default=None, alias="functionSelector")
-    implemented: bool = True
+class Assignment(ExpressionBase):
+    operator: str
+    left_hand_side: Expression = Field(default=None, alias="leftHandSide")
+    right_hand_side: Expression = Field(default=None, alias="rightHandSide")
+
+
+class TupleExpression(ExpressionBase):
+    is_inline_array: bool = Field(alias="isInlineArray")
+    components: List[Expression]
+
+
+class UnaryOperation(ExpressionBase):
+    prefix: bool
+    operator: str
+    sub_expression: Expression = Field(alias="subExpression")
+    function: int
+
+
+class BinaryOperation(ExpressionBase):
+    operator: str
+    left_expression: Expression = Field(alias="leftExpression")
+    right_expression: Expression = Field(alias="rightExpression")
+    common_type: TypeDescriptions = Field(alias="commonType")
+    function: int
+
+
+class FunctionCall(ExpressionBase):
+    expression: Expression
+    names: List[str]
+    name_locations: List[str] = Field(alias="nameLocations")
+    arguments: List[Expression]
+    try_call: bool = Field(alias="tryCall")
     kind: str
-    modifiers: List = Field(default_factory=list)
-    name_location: str = Field(alias="nameLocation")
-    parameters: ParameterList
-    return_parameters: ParameterList = Field(alias="returnParameters")
-    scope: int
+
+
+class FunctionCallOptions(ExpressionBase):
+    expression: Expression
+    names: List[str]
+    options: List[Expression]
+
+
+class NewExpression(ExpressionBase):
+    type_name: TypeName = Field(alias="typeName")
+
+
+class MemberAccess(ExpressionBase):
+    member_name: str = Field(alias="memberName")
+    member_location: str = Field(alias="memberLocation")
+    expression: Expression
+    referencedDeclaration: int = Field(alias="referencedDeclaration")
+
+
+class IndexAccess(ExpressionBase):
+    base_expression: Expression = Field(alias="baseExpression")
+    index_expression: Expression = Field(alias="indexExpression")
+
+class IndexRangeAccess(ExpressionBase):
+    base_expression: Expression = Field(alias="baseExpression")
+    start_expression: Optional[Expression] = Field(default=None, alias="startExpression")
+    end_expression: Optional[Expression] = Field(default=None, alias="endExpression")
+
+
+class Identifier(TypeBase):
     name: str
-    state_mutability: str = Field(alias="stateMutability")
-    virtual: bool = False
-    visibility: str
+    referenced_declaration: Optional[int] = Field(default=None, alias="referencedDeclaration")
+    overloaded_declarations: Optional[List[int]] = Field(default=None, alias="overloadedDeclarations")
+
+class ElementaryTypeNameExpression(ExpressionBase):
+    type_name: ElementaryTypeName = Field(alias="typeName")
+
+class Literal(ExpressionBase):
+    kind: str
+    value: str
+    hex_value: str = Field(alias="hexValue")
+    subdenomination: Optional[str] = Field(default=None)
 
 
-class StructDefinition(NodeBase):
-    canonical_name: str = Field(alias="canonicalName")
-    members: List[VariableDeclaration | FunctionDefinition]
-    name_location: str = Field(alias="nameLocation")
-    scope: int
-    name: str
-    visibility: str
-
-
-class EventDefinition(NodeBase):
-    anonymous: bool
-    event_selector: str = Field(alias="eventSelector")
-    name_location: str = Field(alias="nameLocation")
-    parameters: ParameterList
-    name: str
-
-
-class SourceUnit(NodeBase):
-    license: Optional[str] = Field(default=None)
-    absolute_path: str = Field(alias="absolutePath")
-    exported_symbols: Dict[str, List[int]] = Field(alias="exportedSymbols")
-    nodes: List[Union[ContractDefinition, PragmaDirective]]
+class StructuredDocumentation(NodeBase):
+    text: str  ## TODO CHECK THIS
