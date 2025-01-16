@@ -259,12 +259,13 @@ def parse_expression_statement(node: ExpressionStatement, spaces_count: int = 0)
 
 
 def build_function_header(node: FunctionDefinition, spaces_count: int = 0) -> str:
-    name = node.name
+    name = f" {node.name}" if node.name else ""
     visibility = node.visibility
     mutability = (
         f" {node.state_mutability}" if node.state_mutability != "nonpayable" else ""
     )
     return_params = parse_ast_node(node.return_parameters)
+    modifiers = f" {', '.join([parse_ast_node(mod) for mod in node.modifiers])}" if node.modifiers else ""
 
     if return_params:
         return_params = f" returns ({return_params})"
@@ -274,7 +275,7 @@ def build_function_header(node: FunctionDefinition, spaces_count: int = 0) -> st
             f"{' ' * spaces_count}constructor({parse_ast_node(node.parameters)})"
         )
     else:
-        return f"{' ' * spaces_count}function {name}({parse_ast_node(node.parameters)}) {visibility}{mutability}{return_params}"
+        return f"{' ' * spaces_count}{node.kind}{name}({parse_ast_node(node.parameters)}) {visibility}{modifiers}{mutability}{return_params}"
 
 
 def parse_emit_statement(node: EmitStatement, spaces_count: int = 0) -> str:
@@ -285,17 +286,13 @@ def parse_function_definition(node: FunctionDefinition, spaces_count: int = 0) -
     result = ""
 
     result += build_function_header(node, spaces_count)
-    result += " {\n"
 
-    spaces_count += 4
+    body = parse_ast_node(node.body, spaces_count + 4)
 
-    for statement in node.body.statements:
-        result += parse_ast_node(statement, spaces_count)
-        if not result.endswith(";\n") and not result.endswith("}\n"):
-            result += ";\n"
-
-    spaces_count -= 4
-    result += f"{' ' * spaces_count}}}\n\n"
+    if body:
+        result += f" {{\n{body}{' ' * spaces_count}}}\n\n"
+    else:
+        result += " {}\n\n"
     return result
 
 
@@ -370,7 +367,7 @@ def parse_user_defined_value_type_definition(
 def parse_placeholder_statement(
     node: PlaceholderStatement, spaces_count: int = 0
 ) -> str:
-    return f"{' ' * spaces_count}placeholder;\n"
+    return f"{' ' * spaces_count}_;\n"
 
 
 def parse_continue(node: Continue, spaces_count: int = 0) -> str:
@@ -518,7 +515,7 @@ def parse_modifier_invocation(node: ModifierInvocation, spaces_count: int = 0) -
         if node.arguments
         else ""
     )
-    return f"{' ' * spaces_count}{node.modifier_name}{arguments}"
+    return f"{' ' * spaces_count}{parse_ast_node(node.modifier_name)}{arguments}"
 
 
 def parse_error_definition(node: ErrorDefinition, spaces_count: int = 0) -> str:
@@ -533,8 +530,8 @@ def parse_function_node(node: FunctionNode) -> str:
     return ""
 
 
-def parse_identifier_path(node: IdentifierPath) -> str:
-    return node.name
+def parse_identifier_path(node: IdentifierPath, spaces_count: int = 0) -> str:
+    return f"{' ' * spaces_count}{node.name}"
 
 
 def parse_inheritance_specifier(node: InheritanceSpecifier) -> str:
