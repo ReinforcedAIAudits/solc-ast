@@ -1,5 +1,5 @@
 from typing import Union
-from src.models.ast_models import (
+from .models.ast_models import (
     ArrayTypeName,
     Assignment,
     Block,
@@ -56,8 +56,8 @@ from src.models.ast_models import (
     VariableDeclarationStatement,
     WhileStatement,
 )
-import src.models.ast_models as ast_models
-from src.models.base_ast_models import NodeType
+from .models import ast_models
+from .models.base_ast_models import NodeType
 
 
 def parse_literal(node: Literal, spaces_count: int = 0) -> str:

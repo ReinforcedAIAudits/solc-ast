@@ -3,9 +3,8 @@ from os import listdir
 import unittest
 import solcx
 
-
-from src.ast_parser import parse_ast_to_solidity
-from src.models.ast_models import SourceUnit
+from solc_ast_parser import parse_ast_to_solidity
+from solc_ast_parser.models.ast_models import SourceUnit
 
 
 

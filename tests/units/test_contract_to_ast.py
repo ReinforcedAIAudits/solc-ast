@@ -3,7 +3,7 @@ from os import listdir
 import unittest
 import solcx
 
-from src.models.ast_models import SourceUnit
+from solc_ast_parser.models.ast_models import SourceUnit
 
 CONTRACT_PATH = join(dirname(__file__), "..", "examples")
 
