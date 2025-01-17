@@ -14,7 +14,6 @@ ASTNode = Union[
     "ParameterList",
     "OverrideSpecifier",
     "FunctionDefinition",
-    "FunctionNode",
     "ModifierDefinition",
     "ModifierInvocation",
     "EventDefinition",
@@ -212,9 +211,9 @@ class FunctionDefinition(NodeBase):
     scope: Optional[int] = Field(default=None)
     visibility: Optional[str] = Field(default=None)
     function_selector: Optional[str] = Field(default=None, alias="functionSelector")
-    base_functions: Optional[Dict] = Field(
+    base_functions: Optional[List[int]] = Field(
         default=None, alias="baseFunctions"
-    )  # TODO: Check this type
+    ) 
 
 
 class VariableDeclaration(TypeBase):

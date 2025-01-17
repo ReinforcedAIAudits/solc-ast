@@ -21,9 +21,9 @@ class AstToSourceTestCase(unittest.TestCase):
     def test_ast_to_source(self):
         for contract_name, contract_filename in self.contracts:
             with self.subTest(contract=contract_name):
-                self._test_single_ast(contract_name, contract_filename)
+                self._test_single_ast(contract_filename)
 
-    def _test_single_ast(self, contract_name, contract_filename):
+    def _test_single_ast(self, contract_filename):
         self.maxDiff = None
 
         with open(join(CONTRACT_PATH, contract_filename)) as f:
@@ -32,7 +32,8 @@ class AstToSourceTestCase(unittest.TestCase):
             source_code, solcx.get_installable_solc_versions()
         )
         solc_output = solcx.compile_source(source_code, solc_version=suggested_version)
-        ast = SourceUnit(**solc_output[f"<stdin>:{contract_name}"]["ast"])
+        contract_name = list(solc_output.keys())[0]
+        ast = SourceUnit(**solc_output[contract_name]["ast"])
         try:
             generated = parse_ast_to_solidity(ast)
         except Exception as ex:

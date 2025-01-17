@@ -18,9 +18,9 @@ class ContractToAstTestCase(unittest.TestCase):
     def test_contracts_to_ast(self):
         for contract_name, contract_filename in self.contracts:
             with self.subTest(contract=contract_name):
-                self._test_single_contract(contract_name, contract_filename)
+                self._test_single_contract(contract_filename)
 
-    def _test_single_contract(self, contract_name, contract_filename):
+    def _test_single_contract(self, contract_filename):
         with open(join(CONTRACT_PATH, contract_filename)) as f:
             source_code = f.read()
         suggested_version = solcx.install.select_pragma_version(
@@ -28,7 +28,8 @@ class ContractToAstTestCase(unittest.TestCase):
         )
         solc_output = solcx.compile_source(source_code, solc_version=suggested_version)
         try:
-            ast = SourceUnit(**solc_output[f"<stdin>:{contract_name}"]["ast"])
+            contract_name = list(solc_output.keys())[0]
+            ast = SourceUnit(**solc_output[contract_name]["ast"])
         except Exception as ex:
             self.fail(f"Exception occurred while parsing {contract_name} contract code: {ex}")
 
