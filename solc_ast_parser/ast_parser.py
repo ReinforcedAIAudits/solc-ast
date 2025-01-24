@@ -93,9 +93,13 @@ def parse_parameter_list(node: ParameterList, spaces_count: int = 0) -> str:
 
 def parse_unary_operation(node: UnaryOperation, spaces_count: int = 0) -> str:
     if node.prefix:
-        return f"{' ' * spaces_count}{node.operator}{node.sub_expression.name}"
+        return (
+            f"{' ' * spaces_count}{node.operator}{parse_ast_node(node.sub_expression)}"
+        )
     else:
-        return f"{' ' * spaces_count}{node.sub_expression.name}{node.operator}"
+        return (
+            f"{' ' * spaces_count}{parse_ast_node(node.sub_expression)}{node.operator}"
+        )
 
 
 def parse_binary_operation(node: BinaryOperation, spaces_count: int = 0):
