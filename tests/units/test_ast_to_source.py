@@ -1,3 +1,4 @@
+import json
 from os.path import isfile, join, dirname
 from os import listdir
 import unittest
@@ -14,7 +15,7 @@ class AstToSourceTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.contracts = [
-            (f.split('.')[0], f) for f in listdir(CONTRACT_PATH) if isfile(join(CONTRACT_PATH, f))
+            (f.split('.')[0], f) for f in listdir(CONTRACT_PATH) if isfile(join(CONTRACT_PATH, f) and f.endswith(".sol"))
         ]
         solcx.install_solc()
 

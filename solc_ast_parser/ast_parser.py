@@ -1,4 +1,6 @@
 from typing import Union
+
+from solc_ast_parser.models import yul_models
 from .models.ast_models import (
     ArrayTypeName,
     Assignment,
@@ -57,7 +59,146 @@ from .models.ast_models import (
     WhileStatement,
 )
 from .models import ast_models
-from .models.base_ast_models import NodeType
+from .models.base_ast_models import NodeType, YulNodeType
+
+
+def parse_yul_literal(node: yul_models.YulLiteral, spaces_count: int = 0) -> str:
+    return f"{' ' * spaces_count}{node.value}"
+
+
+def parse_yul_identifier(node: yul_models.YulIdentifier, spaces_count: int = 0) -> str:
+    return f"{' ' * spaces_count}{node.name}"
+
+
+def parse_yul_builtin_name(
+    node: yul_models.YulBuiltinName, spaces_count: int = 0
+) -> str:
+    return f"{' ' * spaces_count}{node.name}"
+
+
+def parse_yul_assignment(node: yul_models.YulAssignment, spaces_count: int = 0) -> str:
+    return f"{' ' * spaces_count}{', '.join([parse_yul_node(var) for var in node.variable_names])} := {parse_yul_node(node.value)}"
+
+
+def parse_yul_function_call(
+    node: yul_models.YulFunctionCall, spaces_count: int = 0
+) -> str:
+    return f"{' ' * spaces_count}{parse_yul_node(node.function_name, spaces_count)}({', '.join([parse_yul_node(arg, spaces_count) for arg in node.arguments])})"
+
+
+def parse_yul_expression_statement(
+    node: yul_models.YulExpressionStatement, spaces_count: int = 0
+) -> str:
+    return f"{' ' * spaces_count}{parse_yul_node(node.expression, spaces_count)}"
+
+
+def parse_yul_variable_declaration(
+    node: yul_models.YulVariableDeclaration, spaces_count: int = 0
+) -> str:
+    value = f" := {parse_yul_node(node.value, spaces_count)}" if node.value else ""
+    variables = ",".join([parse_yul_node(var, spaces_count) for var in node.variables])
+    return f"{' ' * spaces_count}{variables}{value}"
+
+
+def parse_yul_function_definition(
+    node: yul_models.YulFunctionDefinition, spaces_count: int = 0
+) -> str:
+    parameters = ", ".join([parse_yul_node(param) for param in node.parameters])
+    return_variables = ", ".join(
+        [parse_yul_node(return_variable) for return_variable in node.return_variables]
+    )
+    return f"{' ' * spaces_count}function {node.name}({parameters}) -> {return_variables} {parse_yul_node(node.body)}"
+
+
+def parse_yul_if(node: yul_models.YulIf, spaces_count: int = 0) -> str:
+    return f"{' ' * spaces_count}if {parse_yul_node(node.condition)} {parse_yul_block(node.body, spaces_count, True)}"
+
+
+def parse_yul_case(node: yul_models.YulCase, spaces_count: int = 0) -> str:
+    return f"{' ' * spaces_count}case {node.value} {parse_yul_block(node.body, spaces_count=0, new_line=True)}"
+
+
+def parse_yul_switch(node: yul_models.YulSwitch, spaces_count: int = 0) -> str:
+    cases = "\n".join([parse_yul_node(case, spaces_count) for case in node.cases])
+    return f"{' ' * spaces_count}switch {parse_yul_node(node.expression)} {cases}"
+
+
+def parse_yul_for_loop(node: yul_models.YulForLoop, spaces_count: int = 0) -> str:
+    pre_arr = []
+    for statement in node.pre.statements:
+        if statement.node_type == YulNodeType.YUL_VARIABLE_DECLARATION:
+            pre_arr.append(f"let {parse_yul_node(statement)}")
+        else:
+            pre_arr.append(parse_yul_node(statement))
+        return f"{' ' * spaces_count}for {{ {', '.join(pre_arr)} }} {parse_yul_node(node.condition)} {parse_yul_node(node.post)} {parse_yul_block(node.body, spaces_count, True)}"
+
+
+def parse_yul_break(node: yul_models.YulBreak, spaces_count: int = 0) -> str:
+    return f"{' ' * spaces_count}break"
+
+
+def parse_yul_continue(node: yul_models.YulContinue, spaces_count: int = 0) -> str:
+    return f"{' ' * spaces_count}continue"
+
+
+def parse_yul_leave(node: yul_models.YulLeave, spaces_count: int = 0) -> str:
+    return f"{' ' * spaces_count}leave"
+
+
+def parse_yul_typed_name(node: yul_models.YulTypedName, spaces_count: int = 0) -> str:
+    return f"{' ' * spaces_count}{node.name}"
+
+
+def parse_yul_block(
+    node: yul_models.YulBlock, spaces_count: int = 0, new_line: bool = False
+) -> str:
+    if len(node.statements) == 1 and not new_line:
+        return f"{{ {parse_yul_node(node.statements[0])} }}\n"
+
+    statements = "\n".join(
+        [parse_yul_node(statement, spaces_count + 4) for statement in node.statements]
+    )
+    return f"{{\n{statements}\n{' ' * spaces_count}}}\n"
+
+
+def parse_yul_node(node: yul_models.YulNode, spaces_count: int = 0):
+    match node.node_type:
+        case YulNodeType.YUL_BLOCK:
+            return parse_yul_block(node, spaces_count)
+        case YulNodeType.YUL_LITERAL:
+            return parse_yul_literal(node, spaces_count)
+        case YulNodeType.YUL_IDENTIFIER:
+            return parse_yul_identifier(node, spaces_count)
+        case YulNodeType.YUL_BUILTIN_NAME:
+            return parse_yul_builtin_name(node, spaces_count)
+        case YulNodeType.YUL_ASSIGNMENT:
+            return parse_yul_assignment(node, spaces_count)
+        case YulNodeType.YUL_FUNCTION_CALL:
+            return parse_yul_function_call(node, spaces_count)
+        case YulNodeType.YUL_EXPRESSION_STATEMENT:
+            return parse_yul_expression_statement(node, spaces_count)
+        case YulNodeType.YUL_VARIABLE_DECLARATION:
+            return parse_yul_variable_declaration(node, spaces_count)
+        case YulNodeType.YUL_FUNCTION_DEFINITION:
+            return parse_yul_function_definition(node, spaces_count)
+        case YulNodeType.YUL_IF:
+            return parse_yul_if(node, spaces_count)
+        case YulNodeType.YUL_CASE:
+            return parse_yul_case(node, spaces_count)
+        case YulNodeType.YUL_SWITCH:
+            return parse_yul_switch(node, spaces_count)
+        case YulNodeType.YUL_FOR_LOOP:
+            return parse_yul_for_loop(node, spaces_count)
+        case YulNodeType.YUL_BREAK:
+            return parse_yul_break(node, spaces_count)
+        case YulNodeType.YUL_CONTINUE:
+            return parse_yul_continue(node, spaces_count)
+        case YulNodeType.YUL_LEAVE:
+            return parse_yul_leave(node, spaces_count)
+        case YulNodeType.YUL_TYPED_NAME:
+            return parse_yul_typed_name(node, spaces_count)
+        case _:
+            raise ValueError(f"Unknown node type: {node.node_type}")
 
 
 def parse_literal(node: Literal, spaces_count: int = 0) -> str:
@@ -153,8 +294,8 @@ def parse_variable_declaration_statement(
     else:
         declarations_str = declarations[0]
     left = declarations_str
-    right = parse_ast_node(node.initial_value)
-    return f"{' ' * (spaces_count)}{left} = {right}"
+    right = f" = {parse_ast_node(node.initial_value)}" if node.initial_value else ""
+    return f"{' ' * (spaces_count)}{left}{right}"
 
 
 def parse_ast_node(node: ast_models.ASTNode, spaces_count: int = 0):
@@ -217,6 +358,8 @@ def parse_ast_node(node: ast_models.ASTNode, spaces_count: int = 0):
             return parse_function_call_options(node, spaces_count)
         case NodeType.FUNCTION_NODE:
             return parse_function_node(node, spaces_count)
+        case NodeType.INLINE_ASSEMBLY:
+            return parse_inline_assembly(node, spaces_count)
         case NodeType.NEW_EXPRESSION:
             return parse_new_expression(node, spaces_count)
         case NodeType.MEMBER_ACCESS:
@@ -559,6 +702,12 @@ def parse_function_node(node: FunctionNode, spaces_count: int = 0) -> str:
     return ""
 
 
+def parse_inline_assembly(
+    node: ast_models.InlineAssembly, spaces_count: int = 0
+) -> str:
+    return f"{' ' * spaces_count}assembly {parse_yul_node(node.AST, spaces_count)}"
+
+
 def parse_identifier_path(node: IdentifierPath, spaces_count: int = 0) -> str:
     return f"{' ' * spaces_count}{node.name}"
 
@@ -612,7 +761,11 @@ def parse_block(node: Block, spaces_count: int = 0) -> str:
     result = ""
     for statement in node.statements:
         result += parse_ast_node(statement, spaces_count)
-        if not result.endswith(";\n") and not result.endswith("}\n"):
+        if (
+            not statement.node_type == NodeType.INLINE_ASSEMBLY
+            and not result.endswith(";\n")
+            and not result.endswith("}\n")
+        ):
             result += ";\n"
     return result
 

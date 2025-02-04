@@ -1,6 +1,7 @@
-import enum
-from typing import Dict, List, Optional, TypeAlias, Union
+from typing import Dict, List, Optional, Union
 from pydantic import BaseModel, Field
+
+from solc_ast_parser.models.yul_models import YulBlock
 
 from .base_ast_models import ExpressionBase, NodeBase, TypeBase, TypeDescriptions
 
@@ -19,7 +20,6 @@ ASTNode = Union[
     "EventDefinition",
     "ErrorDefinition",
     "TypeName",
-    # "InlineAssembly",
     "TryCatchClause",
     "Expression",
     "Declaration",
@@ -40,6 +40,7 @@ Statement = Union[
     "EmitStatement",
     "VariableDeclarationStatement",
     "ExpressionStatement",
+    "InlineAssembly",
 ]
 
 Declaration = Union[
@@ -211,9 +212,7 @@ class FunctionDefinition(NodeBase):
     scope: Optional[int] = Field(default=None)
     visibility: Optional[str] = Field(default=None)
     function_selector: Optional[str] = Field(default=None, alias="functionSelector")
-    base_functions: Optional[List[int]] = Field(
-        default=None, alias="baseFunctions"
-    ) 
+    base_functions: Optional[List[int]] = Field(default=None, alias="baseFunctions")
 
 
 class VariableDeclaration(TypeBase):
@@ -306,7 +305,12 @@ class ArrayTypeName(TypeBase):
     length: Optional[Expression] = Field(default=None)
 
 
-# TODO InlineAssembly
+class InlineAssembly(NodeBase):
+    AST: YulBlock
+    external_references: Optional[List[Dict]] = Field(default=None, alias="externalReferences")
+    evm_version: Optional[str] = Field(default=None, alias="evmVersion")
+    eof_version: Optional[int] = Field(default=None, alias="eofVersion")
+    flags: Optional[List[str]] = Field(default=None)
 
 
 class Block(NodeBase):
@@ -383,7 +387,7 @@ class RevertStatement(NodeBase):
 class VariableDeclarationStatement(NodeBase):
     assignments: List[Union[int, None]] = Field(default_factory=list)
     declarations: List[Union[VariableDeclaration, None]]
-    initial_value: Expression = Field(alias="initialValue")
+    initial_value: Optional[Expression] = Field(default=None, alias="initialValue")
 
 
 class ExpressionStatement(NodeBase):

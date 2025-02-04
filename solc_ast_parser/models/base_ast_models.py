@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 class NodeType(enum.StrEnum):
     SOURCE_UNIT = "SourceUnit"
-    BLOCK = "Block" 
+    BLOCK = "Block"
     PRAGMA_DIRECTIVE = "PragmaDirective"
     CONTRACT_DEFINITION = "ContractDefinition"
     FUNCTION_DEFINITION = "FunctionDefinition"
@@ -25,6 +25,7 @@ class NodeType(enum.StrEnum):
     MEMBER_ACCESS = "MemberAccess"
     INDEX_ACCESS = "IndexAccess"
     INDEX_RANGE_ACCESS = "IndexRangeAccess"
+    INLINE_ASSEMBLY = "InlineAssembly"
     TUPLE_EXPRESSION = "TupleExpression"
     EXPRESSION_STATEMENT = "ExpressionStatement"
     RETURN = "Return"
@@ -57,7 +58,27 @@ class NodeType(enum.StrEnum):
     USER_DEFINED_VALUE_TYPE_DEFINITION = "UserDefinedValueTypeDefinition"
     FUNCTION_TYPE_NAME = "FunctionTypeName"
     ARRAY_TYPE_NAME = "ArrayTypeName"
-    OVERRIDE_SPECIFIER = "OverrideSpecifier"    
+    OVERRIDE_SPECIFIER = "OverrideSpecifier"
+
+
+class YulNodeType(enum.StrEnum):
+    YUL_BLOCK = "YulBlock"
+    YUL_FUNCTION_DEFINITION = "YulFunctionDefinition"
+    YUL_VARIABLE_DECLARATION = "YulVariableDeclaration"
+    YUL_ASSIGNMENT = "YulAssignment"
+    YUL_FUNCTION_CALL = "YulFunctionCall"
+    YUL_LITERAL = "YulLiteral"
+    YUL_IDENTIFIER = "YulIdentifier"
+    YUL_EXPRESSION_STATEMENT = "YulExpressionStatement"
+    YUL_IF = "YulIf"
+    YUL_FOR_LOOP = "YulForLoop"
+    YUL_SWITCH = "YulSwitch"
+    YUL_CASE = "YulCase"
+    YUL_BREAK = "YulBreak"
+    YUL_CONTINUE = "YulContinue"
+    YUL_LEAVE = "YulLeave"
+    YUL_BUILTIN_NAME = "YulBuiltinName"
+    YUL_TYPED_NAME = "YulTypedName"
 
 
 class TypeDescriptions(BaseModel):
@@ -71,13 +92,25 @@ class NodeBase(BaseModel):
     node_type: NodeType = Field(alias="nodeType")
 
     class Config:
-        extra = 'forbid'
+        extra = "forbid"
+
+
+class YulBase(BaseModel):
+    src: str
+    node_type: YulNodeType = Field(alias="nodeType")
+    native_src: str = Field(alias="nativeSrc")
+
+    class Config:
+        extra = "forbid"
 
 
 class TypeBase(NodeBase):
-    type_descriptions: Optional[TypeDescriptions] = Field(default=None, alias="typeDescriptions")
-    argument_types: Optional[List[TypeDescriptions]] = Field(default=None, alias="argumentTypes")
-
+    type_descriptions: Optional[TypeDescriptions] = Field(
+        default=None, alias="typeDescriptions"
+    )
+    argument_types: Optional[List[TypeDescriptions]] = Field(
+        default=None, alias="argumentTypes"
+    )
 
 
 class ExpressionBase(TypeBase):
