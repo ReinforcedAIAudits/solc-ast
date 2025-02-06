@@ -83,7 +83,7 @@ def parse_yul_assignment(node: yul_models.YulAssignment, spaces_count: int = 0) 
 def parse_yul_function_call(
     node: yul_models.YulFunctionCall, spaces_count: int = 0
 ) -> str:
-    return f"{' ' * spaces_count}{parse_yul_node(node.function_name, spaces_count)}({', '.join([parse_yul_node(arg, spaces_count) for arg in node.arguments])})"
+    return f"{' ' * spaces_count}{parse_yul_node(node.function_name, spaces_count)}({', '.join([parse_yul_node(arg) for arg in node.arguments])})"
 
 
 def parse_yul_expression_statement(
@@ -130,7 +130,7 @@ def parse_yul_for_loop(node: yul_models.YulForLoop, spaces_count: int = 0) -> st
             pre_arr.append(f"let {parse_yul_node(statement)}")
         else:
             pre_arr.append(parse_yul_node(statement))
-        return f"{' ' * spaces_count}for {{ {', '.join(pre_arr)} }} {parse_yul_node(node.condition)} {parse_yul_node(node.post)} {parse_yul_block(node.body, spaces_count, True)}"
+    return f"{' ' * spaces_count}for {{ {', '.join(pre_arr)} }} {parse_yul_node(node.condition)} {parse_yul_node(node.post)} {parse_yul_block(node.body, spaces_count, True)}"
 
 
 def parse_yul_break(node: yul_models.YulBreak, spaces_count: int = 0) -> str:
@@ -154,6 +154,9 @@ def parse_yul_block(
 ) -> str:
     if len(node.statements) == 1 and not new_line:
         return f"{{ {parse_yul_node(node.statements[0])} }}\n"
+    
+    if not node.statements:
+        return "{ }\n"
 
     statements = "\n".join(
         [parse_yul_node(statement, spaces_count + 4) for statement in node.statements]

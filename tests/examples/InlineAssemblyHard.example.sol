@@ -29,6 +29,14 @@ contract ExampleContract {
 
     function updateBalance(address _address, uint256 _amount) public {
         balances[_address] += _amount;
+
+        assembly {
+            _amount := add(_amount, 1)
+
+            for { let i := 0 } lt(i, 5) { } {
+                i := add(i, 1)
+            }
+        }
     }
 
     function exampleAssembly(uint256 _input) public pure returns (uint256) {
