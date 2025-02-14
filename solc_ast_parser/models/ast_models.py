@@ -89,7 +89,7 @@ class SourceUnit(NodeBase):
     experimental_solidity: Optional[bool] = Field(
         default=None, alias="experimentalSolidity"
     )
-    exported_symbols: Dict[str, List[int]] = Field(alias="exportedSymbols")
+    exported_symbols: Optional[Dict[str, List[int]]] = Field(default=None, alias="exportedSymbols")
     absolute_path: Optional[str] = Field(default=None, alias="absolutePath")
 
 
@@ -432,7 +432,7 @@ class FunctionCall(ExpressionBase):
     name_locations: List[str] = Field(alias="nameLocations")
     arguments: List[Expression]
     try_call: bool = Field(alias="tryCall")
-    kind: str
+    kind: Optional[str] = Field(default=None)
 
 
 class FunctionCallOptions(ExpressionBase):

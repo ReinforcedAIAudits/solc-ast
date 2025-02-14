@@ -114,7 +114,7 @@ class TypeBase(NodeBase):
 
 
 class ExpressionBase(TypeBase):
-    is_constant: bool = Field(alias="isConstant")
-    is_lvalue: bool = Field(alias="isLValue")
-    is_pure: bool = Field(alias="isPure")
-    lvalue_requested: bool = Field(alias="lValueRequested")
+    is_constant: Optional[bool] = Field(default=None, alias="isConstant")
+    is_lvalue: Optional[bool] = Field(default=None, alias="isLValue")
+    is_pure: Optional[bool] = Field(default=None, alias="isPure")
+    lvalue_requested: Optional[bool] = Field(default=None, alias="lValueRequested")
