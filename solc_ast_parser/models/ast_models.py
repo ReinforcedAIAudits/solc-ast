@@ -200,7 +200,7 @@ class FunctionDefinition(NodeBase):
     name: str
     name_location: str = Field(alias="nameLocation")
     documentation: Optional["StructuredDocumentation"] = Field(default=None)
-    kind: str
+    kind: Optional[str] = Field(default=None)
     state_mutability: str = Field(alias="stateMutability")
     virtual: bool = Field(default=False)
     overrides: Optional[OverrideSpecifier] = Field(default=None)
@@ -252,7 +252,7 @@ class ModifierDefinition(NodeBase):
 class ModifierInvocation(NodeBase):
     modifier_name: IdentifierPath = Field(alias="modifierName")
     arguments: List[Expression] = Field(default_factory=list)
-    kind: Optional[str]
+    kind: Optional[str] = Field(default=None)
 
 
 class EventDefinition(NodeBase):
@@ -482,7 +482,7 @@ class ElementaryTypeNameExpression(ExpressionBase):
 
 
 class Literal(ExpressionBase):
-    kind: str
+    kind: Optional[str] = Field(default=None)
     value: str
     hex_value: str = Field(alias="hexValue")
     subdenomination: Optional[str] = Field(default=None)
