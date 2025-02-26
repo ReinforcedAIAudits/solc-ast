@@ -59,6 +59,8 @@ class NodeType(enum.StrEnum):
     FUNCTION_TYPE_NAME = "FunctionTypeName"
     ARRAY_TYPE_NAME = "ArrayTypeName"
     OVERRIDE_SPECIFIER = "OverrideSpecifier"
+    COMMENT = "Comment"
+    MULTILINE_COMMENT = "MultilineComment"
 
 
 class YulNodeType(enum.StrEnum):
@@ -86,10 +88,25 @@ class TypeDescriptions(BaseModel):
     type_string: Optional[str] = Field(default=None, alias="typeString")
 
 
+class Comment(BaseModel):
+    id: int
+    src: str
+    node_type: NodeType = Field(alias="nodeType")
+    text: str
+
+
+class MultilineComment(BaseModel):
+    id: int
+    src: str
+    node_type: NodeType = Field(alias="nodeType")
+    text: str
+
+
 class NodeBase(BaseModel):
     id: int
     src: str
     node_type: NodeType = Field(alias="nodeType")
+    comment: Optional[Comment] = Field(default=None)
 
     class Config:
         extra = "forbid"

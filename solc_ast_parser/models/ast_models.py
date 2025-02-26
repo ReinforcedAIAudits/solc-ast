@@ -3,7 +3,14 @@ from pydantic import BaseModel, Field
 
 from solc_ast_parser.models.yul_models import YulBlock
 
-from .base_ast_models import ExpressionBase, NodeBase, TypeBase, TypeDescriptions
+from .base_ast_models import (
+    Comment,
+    ExpressionBase,
+    MultilineComment,
+    NodeBase,
+    TypeBase,
+    TypeDescriptions,
+)
 
 ASTNode = Union[
     "PragmaDirective",
@@ -41,6 +48,8 @@ Statement = Union[
     "VariableDeclarationStatement",
     "ExpressionStatement",
     "InlineAssembly",
+    "Comment",
+    "MultilineComment",
 ]
 
 Declaration = Union[
@@ -89,7 +98,9 @@ class SourceUnit(NodeBase):
     experimental_solidity: Optional[bool] = Field(
         default=None, alias="experimentalSolidity"
     )
-    exported_symbols: Optional[Dict[str, List[int]]] = Field(default=None, alias="exportedSymbols")
+    exported_symbols: Optional[Dict[str, List[int]]] = Field(
+        default=None, alias="exportedSymbols"
+    )
     absolute_path: Optional[str] = Field(default=None, alias="absolutePath")
 
 
@@ -307,7 +318,9 @@ class ArrayTypeName(TypeBase):
 
 class InlineAssembly(NodeBase):
     AST: YulBlock
-    external_references: Optional[List[Dict]] = Field(default=None, alias="externalReferences")
+    external_references: Optional[List[Dict]] = Field(
+        default=None, alias="externalReferences"
+    )
     evm_version: Optional[str] = Field(default=None, alias="evmVersion")
     eof_version: Optional[int] = Field(default=None, alias="eofVersion")
     flags: Optional[List[str]] = Field(default=None)
