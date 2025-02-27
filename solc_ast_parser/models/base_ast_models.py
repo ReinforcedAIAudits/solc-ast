@@ -93,6 +93,7 @@ class Comment(BaseModel):
     src: str
     node_type: NodeType = Field(alias="nodeType")
     text: str
+    is_pure: bool = Field(default=False, alias="isPure")
 
 
 class MultilineComment(BaseModel):

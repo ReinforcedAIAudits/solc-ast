@@ -304,120 +304,119 @@ def parse_variable_declaration_statement(
 def parse_ast_node(node: ast_models.ASTNode, spaces_count: int = 0):
     match node.node_type:
         case NodeType.PRAGMA_DIRECTIVE:
-            line = parse_pragma_directive(node, spaces_count)
+            return parse_pragma_directive(node, spaces_count)
         # case NodeType.STRUCTURED_DOCUMENTATION:
-        #     line =  parse_structured_documentation(node, spaces_count)
+        #     return  parse_structured_documentation(node, spaces_count)
         case NodeType.IDENTIFIER_PATH:
-            line = parse_identifier_path(node, spaces_count)
+            return parse_identifier_path(node, spaces_count)
         case NodeType.INHERITANCE_SPECIFIER:
-            line = parse_inheritance_specifier(node, spaces_count)
+            return parse_inheritance_specifier(node, spaces_count)
         case NodeType.USING_FOR_DIRECTIVE:
-            line = parse_using_for_directive(node, spaces_count)
+            return parse_using_for_directive(node, spaces_count)
         case NodeType.PARAMETER_LIST:
-            line = parse_parameter_list(node, spaces_count)
+            return parse_parameter_list(node, spaces_count)
         case NodeType.OVERRIDE_SPECIFIER:
-            line = parse_override_specifier(node, spaces_count)
+            return parse_override_specifier(node, spaces_count)
         case NodeType.FUNCTION_DEFINITION:
-            line = parse_function_definition(node, spaces_count)
+            return parse_function_definition(node, spaces_count)
         case NodeType.MODIFIER_DEFINITION:
-            line = parse_modifier_definition(node, spaces_count)
+            return parse_modifier_definition(node, spaces_count)
         case NodeType.MODIFIER_INVOCATION:
-            line = parse_modifier_invocation(node, spaces_count)
+            return parse_modifier_invocation(node, spaces_count)
         case NodeType.ERROR_DEFINITION:
-            line = parse_error_definition(node, spaces_count)
+            return parse_error_definition(node, spaces_count)
         case NodeType.EVENT_DEFINITION:
-            line = parse_event_definition(node, spaces_count)
+            return parse_event_definition(node, spaces_count)
         case NodeType.TRY_CATCH_CLAUSE:
-            line = parse_try_catch_clause(node, spaces_count)
+            return parse_try_catch_clause(node, spaces_count)
         case NodeType.MAPPING:
-            line = parse_mapping(node, spaces_count)
+            return parse_mapping(node, spaces_count)
         case NodeType.USER_DEFINED_TYPE_NAME:
-            line = parse_user_defined_type_name(node, spaces_count)
+            return parse_user_defined_type_name(node, spaces_count)
         case NodeType.FUNCTION_TYPE_NAME:
-            line = parse_function_type_name(node, spaces_count)
+            return parse_function_type_name(node, spaces_count)
         case NodeType.ARRAY_TYPE_NAME:
-            line = parse_array_type_name(node, spaces_count)
+            return parse_array_type_name(node, spaces_count)
         case NodeType.ELEMENTARY_TYPE_NAME:
-            line = parse_elementary_type_name(node, spaces_count)
+            return parse_elementary_type_name(node, spaces_count)
         case NodeType.IDENTIFIER:
-            line = f"{' ' * spaces_count}{node.name}"
+            return f"{' ' * spaces_count}{node.name}"
         case NodeType.LITERAL:
-            line = parse_literal(node, spaces_count)
+            return parse_literal(node, spaces_count)
         case NodeType.ELEMENTARY_TYPE_NAME_EXPRESSION:
-            line = parse_elementary_type_name_expression(node, spaces_count)
+            return parse_elementary_type_name_expression(node, spaces_count)
         case NodeType.CONDITIONAL:
-            line = parse_conditional(node, spaces_count)
+            return parse_conditional(node, spaces_count)
         case NodeType.ASSIGNMENT:
-            line = parse_assignment(node, spaces_count)
+            return parse_assignment(node, spaces_count)
         case NodeType.TUPLE_EXPRESSION:
-            line = parse_tuple_expression(node, spaces_count)
+            return parse_tuple_expression(node, spaces_count)
         case NodeType.UNARY_OPERATION:
-            line = parse_unary_operation(node, spaces_count)
+            return parse_unary_operation(node, spaces_count)
         case NodeType.BINARY_OPERATION:
-            line = parse_binary_operation(node, spaces_count)
+            return parse_binary_operation(node, spaces_count)
         case NodeType.FUNCTION_CALL:
-            line = parse_function_call(node, spaces_count)
+            return parse_function_call(node, spaces_count)
         case NodeType.FUNCTION_CALL_OPTIONS:
-            line = parse_function_call_options(node, spaces_count)
+            return parse_function_call_options(node, spaces_count)
         case NodeType.FUNCTION_NODE:
-            line = parse_function_node(node, spaces_count)
+            return parse_function_node(node, spaces_count)
         case NodeType.INLINE_ASSEMBLY:
-            line = parse_inline_assembly(node, spaces_count)
+            return parse_inline_assembly(node, spaces_count)
         case NodeType.NEW_EXPRESSION:
-            line = parse_new_expression(node, spaces_count)
+            return parse_new_expression(node, spaces_count)
         case NodeType.MEMBER_ACCESS:
-            line = parse_member_access(node, spaces_count)
+            return parse_member_access(node, spaces_count)
         case NodeType.INDEX_ACCESS:
-            line = parse_index_access(node, spaces_count)
+            return parse_index_access(node, spaces_count)
         case NodeType.INDEX_RANGE_ACCESS:
-            line = parse_index_range_access(node, spaces_count)
+            return parse_index_range_access(node, spaces_count)
         case NodeType.IMPORT_DIRECTIVE:
-            line = parse_import_directive(node, spaces_count)
+            return parse_import_directive(node, spaces_count)
         case NodeType.CONTRACT_DEFINITION:
-            line = parse_contract_definition(node, spaces_count)
+            return parse_contract_definition(node, spaces_count)
         case NodeType.STRUCT_DEFINITION:
-            line = parse_struct_definition(node, spaces_count)
+            return parse_struct_definition(node, spaces_count)
         case NodeType.ENUM_DEFINITION:
-            line = parse_enum_definition(node, spaces_count)
+            return parse_enum_definition(node, spaces_count)
         case NodeType.ENUM_VALUE:
-            line = parse_enum_value(node, spaces_count)
+            return parse_enum_value(node, spaces_count)
         case NodeType.USER_DEFINED_VALUE_TYPE_DEFINITION:
-            line = parse_user_defined_value_type_definition(node, spaces_count)
+            return parse_user_defined_value_type_definition(node, spaces_count)
         case NodeType.VARIABLE_DECLARATION:
-            line = parse_variable_declaration(node, spaces_count)
+            return parse_variable_declaration(node, spaces_count)
         case NodeType.BLOCK:
             return parse_block(node, spaces_count)
         case NodeType.PLACEHOLDER_STATEMENT:
-            line = parse_placeholder_statement(node, spaces_count)
+            return parse_placeholder_statement(node, spaces_count)
         case NodeType.IF_STATEMENT:
-            line = parse_if_statement(node, spaces_count)
+            return parse_if_statement(node, spaces_count)
         case NodeType.TRY_STATEMENT:
-            line = parse_try_statement(node, spaces_count)
+            return parse_try_statement(node, spaces_count)
         case NodeType.FOR_STATEMENT:
-            line = parse_for_statement(node, spaces_count)
+            return parse_for_statement(node, spaces_count)
         case NodeType.CONTINUE:
-            line = parse_continue(node, spaces_count)
+            return parse_continue(node, spaces_count)
         case NodeType.BREAK:
-            line = parse_break(node, spaces_count)
+            return parse_break(node, spaces_count)
         case NodeType.RETURN:
-            line = parse_return(node, spaces_count)
+            return parse_return(node, spaces_count)
         case NodeType.THROW:
-            line = parse_throw(node, spaces_count)
+            return parse_throw(node, spaces_count)
         case NodeType.REVERT_STATEMENT:
-            line = parse_revert_statement(node, spaces_count)
+            return parse_revert_statement(node, spaces_count)
         case NodeType.EMIT_STATEMENT:
-            line = parse_emit_statement(node, spaces_count)
+            return parse_emit_statement(node, spaces_count)
         case NodeType.VARIABLE_DECLARATION_STATEMENT:
-            line = parse_variable_declaration_statement(node, spaces_count)
+            return parse_variable_declaration_statement(node, spaces_count)
         case NodeType.EXPRESSION_STATEMENT:
-            line = parse_expression_statement(node, spaces_count)
+            return parse_expression_statement(node, spaces_count)
         case NodeType.COMMENT:
             return f"{' ' * spaces_count}// {node.text}\n"
         case NodeType.MULTILINE_COMMENT:
-            return f"{' ' * spaces_count}/* {node.text} */\n"
+            return f"{' ' * spaces_count}{node.text}\n"
         case _:
             raise ValueError(f"Unknown node type: {node.node_type}")
-    return f"{line}{parse_ast_node(node.comment, 1) if node.comment else ''}"
 
 
 def parse_expression_statement(node: ExpressionStatement, spaces_count: int = 0) -> str:
@@ -551,9 +550,9 @@ def parse_break(node: Break, spaces_count: int = 0) -> str:
 
 def parse_return(node: Return, spaces_count: int = 0) -> str:
     if node.expression:
-        return f"{' ' * spaces_count}return {parse_ast_node(node.expression)};\n"
+        return f"{' ' * spaces_count}return {parse_ast_node(node.expression)}"
     else:
-        return f"{' ' * spaces_count}return;\n"
+        return f"{' ' * spaces_count}return"
 
 
 def parse_throw(node: Throw, spaces_count: int = 0) -> str:
@@ -610,11 +609,11 @@ def parse_contract_definition(node: ContractDefinition, spaces_count: int = 0) -
     if len(node.base_contracts):
         base_contracts = [parse_ast_node(base) for base in node.base_contracts]
         base_contracts = f" is {', '.join(base_contracts)}"
-    code = f"{node.contract_kind} {node.name}{base_contracts} {{\n"
+    code = f"{node.contract_kind} {node.name}{base_contracts} {{{f' // {node.comment.text}' if node.comment else ''}\n"
     spaces_count = 4
     for contract_node in node.nodes:
         if contract_node.node_type == NodeType.VARIABLE_DECLARATION:
-            code += f"{parse_variable_declaration(contract_node, spaces_count)};\n"
+            code += f"{parse_variable_declaration(contract_node, spaces_count)};{f' // {contract_node.comment.text}' if contract_node.comment else ''}\n"
             continue
         code += parse_ast_node(contract_node, spaces_count)
     code += "}\n\n"
@@ -768,14 +767,22 @@ def parse_try_statement(node: TryStatement, spaces_count: int = 0) -> str:
 def parse_block(node: Block, spaces_count: int = 0) -> str:
     result = ""
     for statement in node.statements:
-        result += parse_ast_node(statement, spaces_count)
-        if (
-            not statement.node_type
-            in (NodeType.INLINE_ASSEMBLY, NodeType.COMMENT, NodeType.MULTILINE_COMMENT)
-            and not result.endswith(";\n")
-            and not result.endswith("}\n")
+        if not statement.node_type in (
+            NodeType.COMMENT,
+            NodeType.MULTILINE_COMMENT,
         ):
-            result += f";{f'// {statement.comment.text}' if statement.comment else ''}\n"
+            result += parse_ast_node(statement, spaces_count)
+            if (
+                statement.node_type != NodeType.INLINE_ASSEMBLY
+                and not result.endswith(";\n")
+                and not result.endswith("}\n")
+            ):
+                result += (
+                    f";{f' // {statement.comment.text}' if statement.comment else ''}\n"
+                )
+
+        else:
+            result += parse_ast_node(statement, spaces_count)
     return result
 
 
