@@ -6,7 +6,7 @@ import solcx
 
 from solc_ast_parser import parse_ast_to_solidity
 from solc_ast_parser.models.ast_models import SourceUnit
-from solc_ast_parser.utils import insert_comments_into_ast
+from solc_ast_parser.comments import insert_comments_into_ast
 
 
 

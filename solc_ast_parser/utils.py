@@ -48,11 +48,9 @@ def traverse_ast(
     visitor: Callable[[Any, Optional[ast_models.ASTNode]], None],
     parent: Optional[ast_models.ASTNode] = None,
 ) -> None:
-    """Traverse AST and apply visitor function to each node."""
     if node is None:
         return
-    with open("node.txt", "a") as f:
-        f.write(f"{node}\n") if node.id == 136 else None
+
     visitor(node, parent)
 
     for field_name, field in node.model_fields.items():
@@ -104,102 +102,34 @@ def create_standard_solidity_input(contract_content: str, contract_name: str) ->
     }
 
 
-def find_comments(source: str) -> List[Union[Comment, MultilineComment]]:
-    comments = []
+def find_node_with_properties(
+    ast: ast_models.ASTNode, **kwargs
+) -> List[ast_models.ASTNode]:
+    def check_node(node):
+        for key, value in kwargs.items():
+            if not hasattr(node, key) or getattr(node, key) != value:
+                return False
+        return True
 
-    for match in re.finditer(r"(.*)(\/\/.*?(?=\n|$))", source):
-        comments.append(
-            create_comment_node(
-                match.start() + len(match.group(1)) - 2,
-                match.group(2).strip("/ "),
-                False,
-                match.group(1).strip() == "",
-            )
-        )
-
-    for match in re.finditer(r"/\*.*?\*/", source, re.DOTALL):
-        comments.append(create_comment_node(match.start(), match.group(), True))
-
-    return sorted(comments, key=lambda x: x.src.split(":")[0])
+    nodes = []
+    traverse_ast(ast, lambda n: nodes.append(n) if check_node(n) else None)
+    return nodes
 
 
-def create_comment_node(
-    start: int, text: str, is_multiline: bool = False, is_pure: bool = True
-) -> Comment:
-    if is_multiline:
-        return MultilineComment(
-            src=f"{start}:{len(text)}:0",
-            text=text,
-            id=random.randint(0, 1000000),
-            nodeType=NodeType.MULTILINE_COMMENT,
-        )
-    return Comment(
-        src=f"{start}:{len(text)}:0",
-        text=text,
-        id=random.randint(0, 1000000),
-        nodeType=NodeType.MULTILINE_COMMENT if is_multiline else NodeType.COMMENT,
-        isPure=is_pure,
-    )
-
-
-def insert_comments_into_ast(source_code: str, ast: SourceUnit) -> SourceUnit:
-    comments = find_comments(source_code)
-    return insert_nodes_into_ast(ast, comments)
-
-
-def insert_node_into_node(
-    node: ast_models.ASTNode,
-    parent_node: ast_models.ASTNode,
-    new_node: ast_models.ASTNode,
-) -> ast_models.ASTNode:
-    if node == new_node:
-        return parent_node
-
-    if not parent_node:
-        if node.node_type == NodeType.SOURCE_UNIT:
-            node.nodes.insert(0, new_node)
-        return node
-
-    if new_node.node_type == NodeType.COMMENT and not new_node.is_pure:
-        node.comment = new_node
-        return node
-
-    if parent_node.node_type in (NodeType.SOURCE_UNIT, NodeType.CONTRACT_DEFINITION):
-        parent_node.nodes.insert(parent_node.nodes.index(node), new_node)
-    elif parent_node.node_type == NodeType.BLOCK:
-        parent_node.statements.insert(parent_node.statements.index(node), new_node)
-    else:
-        parent_node.comment = new_node
-
-    return parent_node
-
-
-def insert_nodes_into_ast(ast: SourceUnit, nodes: List[Comment]) -> SourceUnit:
-    for node in nodes:
-        min_distance = float("inf")
-        closest_node = None
-        parent_node = None
-
-        def find_closest_node(
-            current_node: ast_models.ASTNode, parent: Optional[ast_models.ASTNode]
-        ) -> None:
-            nonlocal min_distance, closest_node, parent_node
-            start = int(current_node.src.split(":")[0])
-            if isinstance(node, Comment) and not node.is_pure:
-                start = int(current_node.src.split(":")[0]) + int(
-                    current_node.src.split(":")[1]
-                )
-            distance = start - int(node.src.split(":")[0])
-            if 0 <= distance < min_distance:
-                min_distance = distance
-                closest_node = current_node
-                parent_node = parent
-
-        traverse_ast(ast, find_closest_node)
-
-        if closest_node is not None:
-            parent_node = insert_node_into_node(closest_node, parent_node, node)
-            replace_node(ast, parent_node.id, parent_node)
-    with open("ast.json", "w") as f:
-        f.write(json.dumps(ast.dict(), indent=2))
-    return ast
+def get_contract_nodes(
+    ast: SourceUnit, node_type: NodeType = None
+) -> List[ast_models.ASTNode]:
+    nodes = []
+    for node in ast.nodes:
+        if node.node_type == NodeType.CONTRACT_DEFINITION:
+            if not node_type:
+                return node.nodes
+            for contract_node in node.nodes:
+                if contract_node.node_type == node_type:
+                    if (
+                        contract_node.node_type == NodeType.FUNCTION_DEFINITION
+                        and contract_node.kind == "constructor"
+                    ):
+                        continue
+                    nodes.append(contract_node)
+    return nodes
