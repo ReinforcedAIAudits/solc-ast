@@ -64,7 +64,59 @@ def traverse_ast(
             traverse_ast(value, visitor, node)
 
 
-def replace_node(ast_node: Any, target_id: int, replacement_node: Any) -> bool:
+def update_node_fields(
+    ast_node: ast_models.ASTNode,
+    target_fields: Dict[str, Any],
+    new_values: Dict[str, Any],
+) -> bool:
+    stack = deque([ast_node])
+    updated = False
+    visited = set()
+
+    while stack:
+        current_node = stack.popleft()
+        if not hasattr(current_node, "id"):
+            continue
+        node_id = current_node.id
+        if node_id in visited:
+            continue
+        visited.add(node_id)
+
+        matches = True
+        for field, value in target_fields.items():
+            if not hasattr(current_node, field):
+                matches = False
+                break
+
+            current_value = getattr(current_node, field)
+            if isinstance(value, list):
+                if current_value not in value:
+                    matches = False
+                    break
+            elif current_value != value:
+                matches = False
+                break
+
+        if matches:
+            for field, value in new_values.items():
+                if hasattr(current_node, field):
+                    setattr(current_node, field, value)
+                    updated = True
+
+        for field_name, field_value in current_node.__dict__.items():
+            if isinstance(field_value, list):
+                for item in field_value:
+                    if hasattr(item, "model_fields"):
+                        stack.append(item)
+            elif hasattr(field_value, "model_fields"):
+                stack.append(field_value)
+
+    return updated
+
+
+def replace_node(
+    ast_node: ast_models.ASTNode, target_id: int, replacement_node: ast_models.ASTNode
+) -> bool:
     if hasattr(ast_node, "id") and ast_node.id == target_id:
         return False
 
@@ -103,7 +155,7 @@ def create_standard_solidity_input(contract_content: str, contract_name: str) ->
 
 
 def find_node_with_properties(
-    ast: ast_models.ASTNode, **kwargs
+    ast: ast_models.ASTNode, **kwargs  # name="functionName"
 ) -> List[ast_models.ASTNode]:
     def check_node(node):
         for key, value in kwargs.items():
@@ -112,7 +164,7 @@ def find_node_with_properties(
         return True
 
     nodes = []
-    traverse_ast(ast, lambda n: nodes.append(n) if check_node(n) else None)
+    traverse_ast(ast, lambda n, p: nodes.append(n) if check_node(n) else None)
     return nodes
 
 

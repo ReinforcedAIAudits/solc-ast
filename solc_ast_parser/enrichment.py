@@ -133,133 +133,92 @@ def restore_storages(ast: SourceUnit) -> SourceUnit:
         s.name
         for s in find_node_with_properties(ast, node_type=NodeType.VARIABLE_DECLARATION)
     ]
-
     function_calls = [
         f.expression
         for f in find_node_with_properties(ast, node_type=NodeType.FUNCTION_CALL)
     ]
-    builtin_storages = ["msg", "block", "tx", "now", "gasleft", "this"]
+    builtin_storages = {"msg", "block", "tx", "now", "gasleft", "this"}
     storage_types = {}
     events_to_create = {}
 
-    def analyze_storage_type(node: ast_models.ASTNode):
-        if node.node_type == NodeType.INDEX_ACCESS:
-            base_name = extract_expression_name(node.base_expression)
-            if (
-                base_name not in storages
-                and base_name not in storage_types
-                and node not in function_calls
-            ):
-                storage_types[base_name] = "array"
-        elif node.node_type == NodeType.MEMBER_ACCESS:
-            if node.expression.node_type == NodeType.INDEX_ACCESS:
-                base_name = extract_expression_name(node.expression)
-                if (
-                    base_name not in storages
-                    and base_name not in storage_types
-                    and node not in function_calls
-                ):
-                    storage_types[base_name] = "struct array"
-            else:
-                base_name = extract_expression_name(node.expression)
-                if (
-                    base_name not in storages
-                    and base_name not in storage_types
-                    and node not in function_calls
-                ):
-                    storage_types[base_name] = "struct"
-
-        elif node.node_type == NodeType.EMIT_STATEMENT:
-            if hasattr(node.event_call, "expression"):
-                event_name = extract_expression_name(node.event_call.expression)
-                if not event_name in list(events_to_create.keys()):
-                    events_to_create[event_name] = node.event_call.arguments
-        elif node.node_type == NodeType.FUNCTION_CALL:
-            if hasattr(node, "expression") and hasattr(node.expression, "member_name"):
-                if node.expression.member_name in [
-                    "transfer",
-                    "send",
-                    "call",
-                    "sender",
-                ]:
-                    base_name = extract_expression_name(node.expression.expression)
-                    if base_name not in storages:
-                        storage_types[base_name] = "address"
-        elif node.node_type == NodeType.IDENTIFIER:
-            if (
-                node.name not in storages
-                and node.name not in storage_types
-                and node not in function_calls
-            ):
-                storage_types[node.name] = "uint256"
-
-    traverse_ast(ast, analyze_storage_type)
-
-    for event_name, event_args in events_to_create.items():
-        event_params = []
-        for arg in event_args:
-            param_type = "address" if is_likely_address(arg, ast) else "uint256"
-            event_params.append(
-                create_storage_declaration(
-                    storage_name=f"param{len(event_params)}",
-                    storage_type=create_elementary_type(param_type),
-                )
-            )
-
-        event_declaration = create_event_definition(
-            event_name=event_name, parameters=event_params
+    def _create_array_storage(storage_name: str):
+        return create_storage_declaration(
+            storage_name=storage_name,
+            storage_type=ast_models.ArrayTypeName(
+                baseType=create_elementary_type("uint256"),
+                length=None,
+                nodeType=NodeType.ARRAY_TYPE_NAME,
+                id=random.randint(0, 100000),
+                src="",
+            ),
         )
-        ast = append_declaration_to_contract(ast, event_declaration)
 
-    for storage_name, storage_type in storage_types.items():
-        storages = [
-            s.name
-            for s in find_node_with_properties(
-                ast, node_type=NodeType.VARIABLE_DECLARATION
-            )
-        ]
+    def _create_struct_storage(storage_name: str):
+        nonlocal ast
+        struct_name = storage_name.capitalize()
+        members = filter(
+            lambda n: n.node_type == NodeType.MEMBER_ACCESS
+            and extract_expression_name(n.expression) == storage_name,
+            find_node_with_properties(ast, node_type=NodeType.MEMBER_ACCESS),
+        )
+        struct_decl = create_struct_declaration(
+            struct_name=struct_name,
+            struct_members=[
+                create_storage_declaration(
+                    storage_name=member.member_name,
+                    storage_type=create_elementary_type("uint256"),
+                )
+                for member in members
+            ],
+        )
+        ast = append_declaration_to_contract(ast, struct_decl)
 
-        if (
-            storage_type == "array"
-            and storage_name not in storages
-            and storage_name not in builtin_storages
-        ):
-            storage_declaration = create_storage_declaration(
-                storage_name=storage_name,
-                storage_type=ast_models.ArrayTypeName(
-                    baseType=create_elementary_type("uint256"),
-                    length=None,
-                    nodeType=NodeType.ARRAY_TYPE_NAME,
+        return create_storage_declaration(
+            storage_name=storage_name,
+            storage_type=ast_models.UserDefinedTypeName(
+                nodeType=NodeType.USER_DEFINED_TYPE_NAME,
+                id=random.randint(0, 100000),
+                src="",
+                pathNode=IdentifierPath(
+                    nodeType=NodeType.IDENTIFIER_PATH,
                     id=random.randint(0, 100000),
                     src="",
+                    nameLocations=[],
+                    name=struct_name,
                 ),
-            )
-        elif (
-            storage_type == "struct"
-            and storage_name not in storages
-            and storage_name not in builtin_storages
-        ):
-            struct_name = storage_name.capitalize()
-            members = filter(
-                lambda n: n.node_type == NodeType.MEMBER_ACCESS
-                and extract_expression_name(n.expression) == storage_name,
-                find_node_with_properties(ast, node_type=NodeType.MEMBER_ACCESS),
-            )
-            struct_decl = create_struct_declaration(
-                struct_name=struct_name,
-                struct_members=[
+            ),
+        )
+
+    def _create_struct_array_storage(storage_name: str):
+        nonlocal ast
+        struct_name = storage_name.capitalize()
+        members = filter(
+            lambda n: n.node_type == NodeType.MEMBER_ACCESS
+            and extract_expression_name(n.expression) == storage_name,
+            find_node_with_properties(ast, node_type=NodeType.MEMBER_ACCESS),
+        )
+        struct_members = []
+
+        for member in members:
+            if member.id not in [m.id for m in struct_members]:
+                struct_members.append(
                     create_storage_declaration(
                         storage_name=member.member_name,
                         storage_type=create_elementary_type("uint256"),
                     )
-                    for member in members
-                ],
-            )
-            ast = append_declaration_to_contract(ast, struct_decl)
+                )
 
-            storage_declaration = create_storage_declaration(
-                storage_name=storage_name,
-                storage_type=ast_models.UserDefinedTypeName(
+        print(list(members))
+        struct_decl = create_struct_declaration(
+            struct_name=struct_name,
+            struct_members=struct_members,
+        )
+        ast = append_declaration_to_contract(ast, struct_decl)
+
+        return create_storage_declaration(
+            storage_name=storage_name,
+            storage_type=ast_models.ArrayTypeName(
+                baseType=ast_models.UserDefinedTypeName(
                     nodeType=NodeType.USER_DEFINED_TYPE_NAME,
                     id=random.randint(0, 100000),
                     src="",
@@ -271,73 +230,321 @@ def restore_storages(ast: SourceUnit) -> SourceUnit:
                         name=struct_name,
                     ),
                 ),
-            )
-        elif (
-            storage_type == "struct array"
-            and storage_name not in storages
-            and storage_name not in builtin_storages
-        ):
-            struct_name = storage_name.capitalize()
-            members = filter(
-                lambda n: n.node_type == NodeType.MEMBER_ACCESS
-                and extract_expression_name(n.expression) == storage_name,
-                find_node_with_properties(ast, node_type=NodeType.MEMBER_ACCESS),
-            )
-            struct_decl = create_struct_declaration(
-                struct_name=struct_name,
-                struct_members=[
-                    create_storage_declaration(
-                        storage_name=member.member_name,
-                        storage_type=create_elementary_type("uint256"),
-                    )
-                    for member in members
-                ],
-            )
-            ast = append_declaration_to_contract(ast, struct_decl)
+                length=None,
+                nodeType=NodeType.ARRAY_TYPE_NAME,
+                id=random.randint(0, 100000),
+                src="",
+            ),
+        )
 
-            storage_declaration = create_storage_declaration(
-                storage_name=storage_name,
-                storage_type=ast_models.ArrayTypeName(
-                    baseType=ast_models.UserDefinedTypeName(
-                        nodeType=NodeType.USER_DEFINED_TYPE_NAME,
-                        id=random.randint(0, 100000),
-                        src="",
-                        pathNode=IdentifierPath(
-                            nodeType=NodeType.IDENTIFIER_PATH,
-                            id=random.randint(0, 100000),
-                            src="",
-                            nameLocations=[],
-                            name=struct_name,
-                        ),
-                    ),
-                    length=None,
-                    nodeType=NodeType.ARRAY_TYPE_NAME,
-                    id=random.randint(0, 100000),
-                    src="",
+    def analyze_storage_type(node: ast_models.ASTNode):
+        if not hasattr(node, "node_type"):
+            return
+
+        handlers = {
+            NodeType.INDEX_ACCESS: _handle_index_access,
+            NodeType.MEMBER_ACCESS: _handle_member_access,
+            NodeType.EMIT_STATEMENT: _handle_emit_statement,
+            NodeType.FUNCTION_CALL: _handle_function_call,
+            NodeType.IDENTIFIER: _handle_identifier,
+        }
+
+        handler = handlers.get(node.node_type)
+        if handler:
+            handler(node)
+
+    def _handle_index_access(node):
+        base_name = extract_expression_name(node.base_expression)
+        if _should_add_storage(base_name, node):
+            storage_types[base_name] = "array"
+
+    def _handle_member_access(node):
+        if node.expression.node_type == NodeType.INDEX_ACCESS:
+            base_name = extract_expression_name(node.expression)
+            if _should_add_storage(base_name, node):
+                storage_types[base_name] = "struct array"
+        else:
+            base_name = extract_expression_name(node.expression)
+            if _should_add_storage(base_name, node):
+                storage_types[base_name] = "struct"
+
+    def _handle_emit_statement(node):
+        if hasattr(node.event_call, "expression"):
+            event_name = extract_expression_name(node.event_call.expression)
+            if event_name not in events_to_create:
+                events_to_create[event_name] = node.event_call.arguments
+
+    def _handle_function_call(node):
+        if hasattr(node, "expression") and hasattr(node.expression, "member_name"):
+            if node.expression.member_name in {"transfer", "send", "call", "sender"}:
+                base_name = extract_expression_name(node.expression.expression)
+                if base_name not in storages:
+                    storage_types[base_name] = "address"
+
+    def _handle_identifier(node):
+        if _should_add_storage(node.name, node):
+            storage_types[node.name] = "uint256"
+
+    def _should_add_storage(name, node):
+        return (
+            name not in storages
+            and name not in storage_types
+            and node not in function_calls
+        )
+
+    def _create_storage_node(storage_name: str, storage_type: str):
+        if storage_name in storages or storage_name in builtin_storages:
+            return None
+
+        type_handlers = {
+            "array": _create_array_storage,
+            "struct": _create_struct_storage,
+            "struct array": _create_struct_array_storage,
+            "address": lambda name: create_storage_declaration(
+                storage_name=name, storage_type=create_elementary_type("address")
+            ),
+            "uint256": lambda name: create_storage_declaration(
+                storage_name=name, storage_type=create_elementary_type("uint256")
+            ),
+        }
+
+        handler = type_handlers.get(storage_type)
+        return handler(storage_name) if handler else None
+
+    traverse_ast(ast, lambda n, p: analyze_storage_type(n))
+
+    for event_name, event_args in events_to_create.items():
+        event_params = [
+            create_storage_declaration(
+                storage_name=f"param{i}",
+                storage_type=create_elementary_type(
+                    "address" if is_likely_address(arg, ast) else "uint256"
                 ),
             )
+            for i, arg in enumerate(event_args)
+        ]
+        ast = append_declaration_to_contract(
+            ast, create_event_definition(event_name=event_name, parameters=event_params)
+        )
 
-        elif (
-            storage_type == "address"
-            and storage_name not in storages
-            and storage_name not in builtin_storages
-        ):
-            storage_declaration = create_storage_declaration(
-                storage_name=storage_name,
-                storage_type=create_elementary_type("address"),
-            )
-        elif storage_name not in storages and storage_name not in builtin_storages:
-
-            storage_declaration = create_storage_declaration(
-                storage_name=storage_name,
-                storage_type=create_elementary_type("uint256"),
-            )
-        else:
-            continue
-
-        ast = append_declaration_to_contract(ast, storage_declaration)
+    for storage_name, storage_type in storage_types.items():
+        storage_node = _create_storage_node(storage_name, storage_type)
+        if storage_node:
+            ast = append_declaration_to_contract(ast, storage_node)
 
     return ast
+
+
+# def restore_storages(ast: SourceUnit) -> SourceUnit:
+#     storages = [
+#         s.name
+#         for s in find_node_with_properties(ast, node_type=NodeType.VARIABLE_DECLARATION)
+#     ]
+
+#     function_calls = [
+#         f.expression
+#         for f in find_node_with_properties(ast, node_type=NodeType.FUNCTION_CALL)
+#     ]
+#     builtin_storages = ["msg", "block", "tx", "now", "gasleft", "this"]
+#     storage_types = {}
+#     events_to_create = {}
+
+#     def analyze_storage_type(node: ast_models.ASTNode):
+#         if node.node_type == NodeType.INDEX_ACCESS:
+#             base_name = extract_expression_name(node.base_expression)
+#             if (
+#                 base_name not in storages
+#                 and base_name not in storage_types
+#                 and node not in function_calls
+#             ):
+#                 storage_types[base_name] = "array"
+#         elif node.node_type == NodeType.MEMBER_ACCESS:
+#             if node.expression.node_type == NodeType.INDEX_ACCESS:
+#                 base_name = extract_expression_name(node.expression)
+#                 if (
+#                     base_name not in storages
+#                     and base_name not in storage_types
+#                     and node not in function_calls
+#                 ):
+#                     storage_types[base_name] = "struct array"
+#             else:
+#                 base_name = extract_expression_name(node.expression)
+#                 if (
+#                     base_name not in storages
+#                     and base_name not in storage_types
+#                     and node not in function_calls
+#                 ):
+#                     storage_types[base_name] = "struct"
+
+#         elif node.node_type == NodeType.EMIT_STATEMENT:
+#             if hasattr(node.event_call, "expression"):
+#                 event_name = extract_expression_name(node.event_call.expression)
+#                 if not event_name in list(events_to_create.keys()):
+#                     events_to_create[event_name] = node.event_call.arguments
+#         elif node.node_type == NodeType.FUNCTION_CALL:
+#             if hasattr(node, "expression") and hasattr(node.expression, "member_name"):
+#                 if node.expression.member_name in [
+#                     "transfer",
+#                     "send",
+#                     "call",
+#                     "sender",
+#                 ]:
+#                     base_name = extract_expression_name(node.expression.expression)
+#                     if base_name not in storages:
+#                         storage_types[base_name] = "address"
+#         elif node.node_type == NodeType.IDENTIFIER:
+#             if (
+#                 node.name not in storages
+#                 and node.name not in storage_types
+#                 and node not in function_calls
+#             ):
+#                 storage_types[node.name] = "uint256"
+
+#     traverse_ast(ast, analyze_storage_type)
+
+#     for event_name, event_args in events_to_create.items():
+#         event_params = []
+#         for arg in event_args:
+#             param_type = "address" if is_likely_address(arg, ast) else "uint256"
+#             event_params.append(
+#                 create_storage_declaration(
+#                     storage_name=f"param{len(event_params)}",
+#                     storage_type=create_elementary_type(param_type),
+#                 )
+#             )
+
+#         event_declaration = create_event_definition(
+#             event_name=event_name, parameters=event_params
+#         )
+#         ast = append_declaration_to_contract(ast, event_declaration)
+
+#     for storage_name, storage_type in storage_types.items():
+#         storages = [
+#             s.name
+#             for s in find_node_with_properties(
+#                 ast, node_type=NodeType.VARIABLE_DECLARATION
+#             )
+#         ]
+
+#         if (
+#             storage_type == "array"
+#             and storage_name not in storages
+#             and storage_name not in builtin_storages
+#         ):
+#             storage_declaration = create_storage_declaration(
+#                 storage_name=storage_name,
+#                 storage_type=ast_models.ArrayTypeName(
+#                     baseType=create_elementary_type("uint256"),
+#                     length=None,
+#                     nodeType=NodeType.ARRAY_TYPE_NAME,
+#                     id=random.randint(0, 100000),
+#                     src="",
+#                 ),
+#             )
+#         elif (
+#             storage_type == "struct"
+#             and storage_name not in storages
+#             and storage_name not in builtin_storages
+#         ):
+#             struct_name = storage_name.capitalize()
+#             members = filter(
+#                 lambda n: n.node_type == NodeType.MEMBER_ACCESS
+#                 and extract_expression_name(n.expression) == storage_name,
+#                 find_node_with_properties(ast, node_type=NodeType.MEMBER_ACCESS),
+#             )
+#             struct_decl = create_struct_declaration(
+#                 struct_name=struct_name,
+#                 struct_members=[
+#                     create_storage_declaration(
+#                         storage_name=member.member_name,
+#                         storage_type=create_elementary_type("uint256"),
+#                     )
+#                     for member in members
+#                 ],
+#             )
+#             ast = append_declaration_to_contract(ast, struct_decl)
+
+#             storage_declaration = create_storage_declaration(
+#                 storage_name=storage_name,
+#                 storage_type=ast_models.UserDefinedTypeName(
+#                     nodeType=NodeType.USER_DEFINED_TYPE_NAME,
+#                     id=random.randint(0, 100000),
+#                     src="",
+#                     pathNode=IdentifierPath(
+#                         nodeType=NodeType.IDENTIFIER_PATH,
+#                         id=random.randint(0, 100000),
+#                         src="",
+#                         nameLocations=[],
+#                         name=struct_name,
+#                     ),
+#                 ),
+#             )
+#         elif (
+#             storage_type == "struct array"
+#             and storage_name not in storages
+#             and storage_name not in builtin_storages
+#         ):
+#             struct_name = storage_name.capitalize()
+#             members = filter(
+#                 lambda n: n.node_type == NodeType.MEMBER_ACCESS
+#                 and extract_expression_name(n.expression) == storage_name,
+#                 find_node_with_properties(ast, node_type=NodeType.MEMBER_ACCESS),
+#             )
+#             struct_decl = create_struct_declaration(
+#                 struct_name=struct_name,
+#                 struct_members=[
+#                     create_storage_declaration(
+#                         storage_name=member.member_name,
+#                         storage_type=create_elementary_type("uint256"),
+#                     )
+#                     for member in members
+#                 ],
+#             )
+#             ast = append_declaration_to_contract(ast, struct_decl)
+
+#             storage_declaration = create_storage_declaration(
+#                 storage_name=storage_name,
+#                 storage_type=ast_models.ArrayTypeName(
+#                     baseType=ast_models.UserDefinedTypeName(
+#                         nodeType=NodeType.USER_DEFINED_TYPE_NAME,
+#                         id=random.randint(0, 100000),
+#                         src="",
+#                         pathNode=IdentifierPath(
+#                             nodeType=NodeType.IDENTIFIER_PATH,
+#                             id=random.randint(0, 100000),
+#                             src="",
+#                             nameLocations=[],
+#                             name=struct_name,
+#                         ),
+#                     ),
+#                     length=None,
+#                     nodeType=NodeType.ARRAY_TYPE_NAME,
+#                     id=random.randint(0, 100000),
+#                     src="",
+#                 ),
+#             )
+
+#         elif (
+#             storage_type == "address"
+#             and storage_name not in storages
+#             and storage_name not in builtin_storages
+#         ):
+#             storage_declaration = create_storage_declaration(
+#                 storage_name=storage_name,
+#                 storage_type=create_elementary_type("address"),
+#             )
+#         elif storage_name not in storages and storage_name not in builtin_storages:
+
+#             storage_declaration = create_storage_declaration(
+#                 storage_name=storage_name,
+#                 storage_type=create_elementary_type("uint256"),
+#             )
+#         else:
+#             continue
+
+#         ast = append_declaration_to_contract(ast, storage_declaration)
+
+#     return ast
 
 
 def is_likely_address(node: ast_models.ASTNode, ast: SourceUnit) -> bool:
@@ -374,7 +581,7 @@ def find_parent_nodes(
             elif hasattr(value, "__fields__") and hasattr(value, "node_type"):
                 collect_parents(value)
 
-    traverse_ast(ast, collect_parents)
+    traverse_ast(ast, lambda n, p: collect_parents(n))
     return parents
 
 
@@ -402,7 +609,7 @@ def extract_expression_type(
         case NodeType.IDENTIFIER:
             traverse_ast(
                 ast,
-                lambda n: (
+                lambda n, p: (
                     type_name.append(extract_type_name(n.type_name))
                     if n.node_type == NodeType.VARIABLE_DECLARATION
                     and n.name == node.name
@@ -412,7 +619,7 @@ def extract_expression_type(
         case NodeType.FUNCTION_CALL:
             traverse_ast(
                 ast,
-                lambda n: (
+                lambda n, p: (
                     type_name.extend(
                         [
                             extract_type_name(param.type_name)
@@ -427,7 +634,7 @@ def extract_expression_type(
         case NodeType.INDEX_ACCESS:
             traverse_ast(
                 ast,
-                lambda n: (
+                lambda n, p: (
                     type_name.append(extract_type_name(n.type_name))
                     if n.node_type == NodeType.VARIABLE_DECLARATION
                     and n.name == node.base_expression.name
@@ -437,7 +644,7 @@ def extract_expression_type(
         case NodeType.INDEX_RANGE_ACCESS:
             traverse_ast(
                 ast,
-                lambda n: (
+                lambda n, p: (
                     type_name.append(extract_type_name(n.type_name))
                     if n.node_type == NodeType.VARIABLE_DECLARATION
                     and n.name == node.base_expression.name
@@ -447,10 +654,10 @@ def extract_expression_type(
         case NodeType.MEMBER_ACCESS:
             traverse_ast(
                 ast,
-                lambda n: (
+                lambda n, p: (
                     type_name.append(extract_type_name(n.type_name))
                     if n.node_type == NodeType.VARIABLE_DECLARATION
-                    and n.name == node.expression.name
+                    and n.name == extract_expression_name(node.expression)
                     else None
                 ),
             )
