@@ -1,22 +1,25 @@
-import json
 from os.path import isfile, join, dirname
 from os import listdir
 import unittest
 import solcx
 
 from solc_ast_parser import parse_ast_to_solidity
-from solc_ast_parser.models.ast_models import SourceUnit
 from solc_ast_parser.comments import insert_comments_into_ast
-
+from solc_ast_parser.utils import (
+    create_ast_with_standart_input,
+)
 
 
 CONTRACT_PATH = join(dirname(__file__), "..", "examples", "comments")
+
 
 class AstToSourceTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.contracts = [
-            (f.split('.')[0], f) for f in listdir(CONTRACT_PATH) if isfile(join(CONTRACT_PATH, f) and f.endswith(".sol"))
+            (f.split(".")[0], f)
+            for f in listdir(CONTRACT_PATH)
+            if isfile(join(CONTRACT_PATH, f) and f.endswith(".sol"))
         ]
         solcx.install_solc()
 
@@ -30,16 +33,13 @@ class AstToSourceTestCase(unittest.TestCase):
 
         with open(join(CONTRACT_PATH, contract_filename)) as f:
             source_code = f.read()
-        suggested_version = solcx.install.select_pragma_version(
-            source_code, solcx.get_installable_solc_versions()
-        )
-        solc_output = solcx.compile_source(source_code, solc_version=suggested_version)
-        contract_name = list(solc_output.keys())[0]
-        ast = SourceUnit(**solc_output[contract_name]["ast"])
+        ast = create_ast_with_standart_input(source_code, contract_filename)
         try:
             ast_with_comments = insert_comments_into_ast(source_code, ast)
         except Exception as ex:
-            self.fail(f"Exception occurred while parsing {contract_name} contract code: {ex}")
+            self.fail(
+                f"Exception occurred while parsing {contract_filename} contract code: {ex}"
+            )
 
         generated = parse_ast_to_solidity(ast_with_comments)
         source = source_code.replace("\n", "").replace('"', "'")
