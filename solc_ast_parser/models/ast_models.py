@@ -469,7 +469,7 @@ class MemberAccess(ExpressionBase):
 
 class IndexAccess(ExpressionBase):
     base_expression: Expression = Field(alias="baseExpression")
-    index_expression: Expression = Field(alias="indexExpression")
+    index_expression: Optional[Expression] = Field(default=None, alias="indexExpression")
 
 
 class IndexRangeAccess(ExpressionBase):

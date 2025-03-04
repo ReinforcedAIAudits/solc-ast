@@ -212,7 +212,7 @@ def parse_literal(node: Literal, spaces_count: int = 0) -> str:
 
 
 def parse_index_access(node: IndexAccess, spaces_count: int = 0) -> str:
-    return f"{' ' * spaces_count}{parse_ast_node(node.base_expression)}[{parse_ast_node(node.index_expression)}]"
+    return f"{' ' * spaces_count}{parse_ast_node(node.base_expression)}[{parse_ast_node(node.index_expression) if node.index_expression else ''}]"
 
 
 def parse_member_access(node: MemberAccess, spaces_count: int = 0) -> str:
@@ -252,13 +252,12 @@ def parse_binary_operation(node: BinaryOperation, spaces_count: int = 0):
 
 def parse_function_call(node: FunctionCall, spaces_count: int = 0) -> str:
     arguments = [parse_ast_node(arg) for arg in node.arguments]
-
-    if node.kind == "typeConversion":
-        return f"{' ' * spaces_count}{parse_ast_node(node.expression)}({', '.join(arguments)})"
-
-    return (
-        f"{' ' * spaces_count}{parse_ast_node(node.expression)}({', '.join(arguments)})"
-    )
+    if len(node.names) > 0:
+        arguments = [f"{name}: {arg}" for name, arg in zip(node.names, arguments)]
+        arguments_str = f"{{{', '.join(arguments)}}}"
+    else:
+        arguments_str = ', '.join(arguments)
+    return f"{' ' * spaces_count}{parse_ast_node(node.expression)}({arguments_str})"
 
 
 def parse_assignment(node: Assignment, spaces_count: int = 0) -> str:
@@ -430,6 +429,7 @@ def build_function_header(node: FunctionDefinition, spaces_count: int = 0) -> st
         f" {node.state_mutability}" if node.state_mutability != "nonpayable" else ""
     )
     overrides = " override" if node.overrides else ""
+    virtual = " virtual" if node.virtual else ""
     return_params = parse_ast_node(node.return_parameters)
     modifiers = (
         f" {', '.join([parse_ast_node(mod) for mod in node.modifiers])}"
@@ -443,7 +443,7 @@ def build_function_header(node: FunctionDefinition, spaces_count: int = 0) -> st
     if node.kind == "constructor":
         return f"{' ' * spaces_count}constructor({parse_ast_node(node.parameters)})"
     else:
-        return f"{' ' * spaces_count}{node.kind}{name}({parse_ast_node(node.parameters)}){visibility}{modifiers}{mutability}{overrides}{return_params}"
+        return f"{' ' * spaces_count}{node.kind}{name}({parse_ast_node(node.parameters)}){visibility}{virtual}{overrides}{modifiers}{mutability}{return_params}"
 
 
 def parse_emit_statement(node: EmitStatement, spaces_count: int = 0) -> str:

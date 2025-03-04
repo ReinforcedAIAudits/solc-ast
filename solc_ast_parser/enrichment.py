@@ -137,7 +137,7 @@ def restore_storages(ast: SourceUnit) -> SourceUnit:
         f.expression
         for f in find_node_with_properties(ast, node_type=NodeType.FUNCTION_CALL)
     ]
-    builtin_storages = {"msg", "block", "tx", "now", "gasleft", "this"}
+    builtin_storages = {"msg", "block", "tx", "now", "gasleft", "this", "abi", "self"}
     storage_types = {}
     events_to_create = {}
 
@@ -494,7 +494,9 @@ def extract_expression_name(node: ast_models.Expression) -> str:
             raise ValueError(f"Unsupported node type: {node.node_type}")
 
 
-def restore_function_definitions(ast: SourceUnit) -> List[ast_models.FunctionDefinition]:
+def restore_function_definitions(
+    ast: SourceUnit,
+) -> List[ast_models.FunctionDefinition]:
     def restore_function_arguments(node: FunctionCall):
         args = []
         for argument in node.arguments:
@@ -525,12 +527,6 @@ def restore_function_definitions(ast: SourceUnit) -> List[ast_models.FunctionDef
         "require",
         "revert",
         "assert",
-        "address",
-        "uint256",
-        "int256",
-        "bool",
-        "string",
-        "bytes",
     ]
     restored_functions = []
     for function_call in function_calls:
@@ -539,6 +535,7 @@ def restore_function_definitions(ast: SourceUnit) -> List[ast_models.FunctionDef
         if (
             function_name not in function_names
             and function_name not in builtin_functions
+            and function_call.kind != "typeConversion"
             and function_name not in storages
             and function_name not in event_defintions
         ):
