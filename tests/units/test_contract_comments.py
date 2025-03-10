@@ -39,7 +39,7 @@ class AstToSourceTestCase(unittest.TestCase):
                 f"Exception occurred while parsing {contract_filename} contract code: {ex}"
             )
 
-        generated = ast_with_comments.parse()
+        generated = ast_with_comments.to_solidity()
         source = source_code.replace("\n", "").replace('"', "'")
         generated = generated.replace("\n", "")
 

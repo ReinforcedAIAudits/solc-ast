@@ -29,15 +29,15 @@ class YulBlock(YulBase):
     statements: List[YulStatement]
     node_type: typing.Literal[YulNodeType.YUL_BLOCK] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0, new_line: bool = False):
+    def to_solidity(self, spaces_count=0, new_line: bool = False):
         if len(self.statements) == 1 and not new_line:
-            return f"{{ {self.statements[0].parse()} }}\n"
+            return f"{{ {self.statements[0].to_solidity()} }}\n"
 
         if not self.statements:
             return "{ }\n"
 
         statements = "\n".join(
-            [statement.parse(spaces_count + 4) for statement in self.statements]
+            [statement.to_solidity(spaces_count + 4) for statement in self.statements]
         )
         return f"{{\n{statements}\n{' ' * spaces_count}}}\n"
 
@@ -47,9 +47,10 @@ class YulTypedName(YulBase):
     type: str
     node_type: typing.Literal[YulNodeType.YUL_TYPED_NAME] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0, new_line=False):
+    def to_solidity(self, spaces_count=0, new_line=False):
         return (
-            super().parse(spaces_count, new_line) + f"{' ' * spaces_count}{self.name}"
+            super().to_solidity(spaces_count, new_line)
+            + f"{' ' * spaces_count}{self.name}"
         )
 
 
@@ -60,9 +61,10 @@ class YulLiteral(YulBase):
     value: str
     node_type: typing.Literal[YulNodeType.YUL_LITERAL] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0, new_line=False):
+    def to_solidity(self, spaces_count=0, new_line=False):
         return (
-            super().parse(spaces_count, new_line) + f"{' ' * spaces_count}{self.value}"
+            super().to_solidity(spaces_count, new_line)
+            + f"{' ' * spaces_count}{self.value}"
         )
 
 
@@ -70,9 +72,10 @@ class YulIdentifier(YulBase):
     name: str
     node_type: typing.Literal[YulNodeType.YUL_IDENTIFIER] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0, new_line=False):
+    def to_solidity(self, spaces_count=0, new_line=False):
         return (
-            super().parse(spaces_count, new_line) + f"{' ' * spaces_count}{self.name}"
+            super().to_solidity(spaces_count, new_line)
+            + f"{' ' * spaces_count}{self.name}"
         )
 
 
@@ -80,9 +83,10 @@ class YulBuiltinName(YulBase):
     name: str
     node_type: typing.Literal[YulNodeType.YUL_BUILTIN_NAME] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0, new_line=False):
+    def to_solidity(self, spaces_count=0, new_line=False):
         return (
-            super().parse(spaces_count, new_line) + f"{' ' * spaces_count}{self.name}"
+            super().to_solidity(spaces_count, new_line)
+            + f"{' ' * spaces_count}{self.name}"
         )
 
 
@@ -91,10 +95,10 @@ class YulAssignment(YulBase):
     value: Optional[YulExpression] = Field(default=None)
     node_type: typing.Literal[YulNodeType.YUL_ASSIGNMENT] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0, new_line=False):
+    def to_solidity(self, spaces_count=0, new_line=False):
         return (
-            super().parse(spaces_count, new_line)
-            + f"{' ' * spaces_count}{', '.join([var.parse() for var in self.variable_names])} := {self.value.parse()}"
+            super().to_solidity(spaces_count, new_line)
+            + f"{' ' * spaces_count}{', '.join([var.to_solidity() for var in self.variable_names])} := {self.value.to_solidity()}"
         )
 
 
@@ -103,11 +107,11 @@ class YulFunctionCall(YulBase):
     arguments: List[YulExpression]
     node_type: typing.Literal[YulNodeType.YUL_FUNCTION_CALL] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0, new_line=False):
+    def to_solidity(self, spaces_count=0, new_line=False):
         return (
-            super().parse(spaces_count, new_line)
-            + f"{' ' * spaces_count}{self.function_name.parse(spaces_count)}"
-            + f"({', '.join([arg.parse() for arg in self.arguments])})"
+            super().to_solidity(spaces_count, new_line)
+            + f"{' ' * spaces_count}{self.function_name.to_solidity(spaces_count)}"
+            + f"({', '.join([arg.to_solidity() for arg in self.arguments])})"
         )
 
 
@@ -117,10 +121,10 @@ class YulExpressionStatement(YulBase):
         alias="nodeType"
     )
 
-    def parse(self, spaces_count=0, new_line=False):
+    def to_solidity(self, spaces_count=0, new_line=False):
         return (
-            super().parse(spaces_count, new_line)
-            + f"{' ' * spaces_count}{self.expression.parse( spaces_count)}"
+            super().to_solidity(spaces_count, new_line)
+            + f"{' ' * spaces_count}{self.expression.to_solidity( spaces_count)}"
         )
 
 
@@ -131,11 +135,11 @@ class YulVariableDeclaration(YulBase):
         alias="nodeType"
     )
 
-    def parse(self, spaces_count=0, new_line=False):
-        value = f" := {self.value.parse( spaces_count)}" if self.value else ""
-        variables = ",".join([var.parse(spaces_count) for var in self.variables])
+    def to_solidity(self, spaces_count=0, new_line=False):
+        value = f" := {self.value.to_solidity( spaces_count)}" if self.value else ""
+        variables = ",".join([var.to_solidity(spaces_count) for var in self.variables])
         return (
-            super().parse(spaces_count, new_line)
+            super().to_solidity(spaces_count, new_line)
             + f"{' ' * spaces_count}{variables}{value}"
         )
 
@@ -149,14 +153,14 @@ class YulFunctionDefinition(YulBase):
         alias="nodeType"
     )
 
-    def parse(self, spaces_count=0, new_line=False):
-        parameters = ", ".join([param.parse() for param in self.parameters])
+    def to_solidity(self, spaces_count=0, new_line=False):
+        parameters = ", ".join([param.to_solidity() for param in self.parameters])
         return_variables = ", ".join(
-            [return_variable.parse() for return_variable in self.return_variables]
+            [return_variable.to_solidity() for return_variable in self.return_variables]
         )
         return (
-            super().parse(spaces_count, new_line)
-            + f"{' ' * spaces_count}function {self.name}({parameters}) -> {return_variables} {self.body.parse()}"
+            super().to_solidity(spaces_count, new_line)
+            + f"{' ' * spaces_count}function {self.name}({parameters}) -> {return_variables} {self.body.to_solidity()}"
         )
 
 
@@ -165,10 +169,10 @@ class YulIf(YulBase):
     body: YulBlock
     node_type: typing.Literal[YulNodeType.YUL_IF] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0, new_line=False):
+    def to_solidity(self, spaces_count=0, new_line=False):
         return (
-            super().parse(spaces_count, new_line)
-            + f"{' ' * spaces_count}if {self.condition.parse()} {self.body.parse( spaces_count, True)}"
+            super().to_solidity(spaces_count, new_line)
+            + f"{' ' * spaces_count}if {self.condition.to_solidity()} {self.body.to_solidity( spaces_count, True)}"
         )
 
 
@@ -177,10 +181,10 @@ class YulCase(YulBase):
     body: YulBlock
     node_type: typing.Literal[YulNodeType.YUL_CASE] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0, new_line=False):
+    def to_solidity(self, spaces_count=0, new_line=False):
         return (
-            super().parse(spaces_count, new_line)
-            + f"{' ' * spaces_count}case {self.value} {self.body.parse( spaces_count=0, new_line=True)}"
+            super().to_solidity(spaces_count, new_line)
+            + f"{' ' * spaces_count}case {self.value} {self.body.to_solidity( spaces_count=0, new_line=True)}"
         )
 
 
@@ -189,11 +193,11 @@ class YulSwitch(YulBase):
     cases: List[YulCase]
     node_type: typing.Literal[YulNodeType.YUL_SWITCH] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0, new_line=False):
-        cases = "\n".join([case.parse(spaces_count) for case in self.cases])
+    def to_solidity(self, spaces_count=0, new_line=False):
+        cases = "\n".join([case.to_solidity(spaces_count) for case in self.cases])
         return (
-            super().parse(spaces_count, new_line)
-            + f"{' ' * spaces_count}switch {self.expression.parse()} {cases}"
+            super().to_solidity(spaces_count, new_line)
+            + f"{' ' * spaces_count}switch {self.expression.to_solidity()} {cases}"
         )
 
 
@@ -204,35 +208,42 @@ class YulForLoop(YulBase):
     body: YulBlock
     node_type: typing.Literal[YulNodeType.YUL_FOR_LOOP] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0, new_line=False):
+    def to_solidity(self, spaces_count=0, new_line=False):
         pre_arr = []
         for statement in self.pre.statements:
             if statement.node_type == YulNodeType.YUL_VARIABLE_DECLARATION:
-                pre_arr.append(f"let {statement.parse()}")
+                pre_arr.append(f"let {statement.to_solidity()}")
             else:
-                pre_arr.append(statement.parse())
+                pre_arr.append(statement.to_solidity())
         return (
-            super().parse(spaces_count, new_line)
-            + f"{' ' * spaces_count}for {{ {', '.join(pre_arr)} }} {self.condition.parse()} {self.post.parse()} {self.body.parse( spaces_count, True)}"
+            super().to_solidity(spaces_count, new_line)
+            + f"{' ' * spaces_count}for {{ {', '.join(pre_arr)} }} {self.condition.to_solidity()} {self.post.to_solidity()} {self.body.to_solidity( spaces_count, True)}"
         )
 
 
 class YulBreak(YulBase):
     node_type: typing.Literal[YulNodeType.YUL_BREAK] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0, new_line=False):
-        return super().parse(spaces_count, new_line) + f"{' ' * spaces_count}break"
+    def to_solidity(self, spaces_count=0, new_line=False):
+        return (
+            super().to_solidity(spaces_count, new_line) + f"{' ' * spaces_count}break"
+        )
 
 
 class YulContinue(YulBase):
     node_type: typing.Literal[YulNodeType.YUL_CONTINUE] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0, new_line=False):
-        return super().parse(spaces_count, new_line) + f"{' ' * spaces_count}continue"
+    def to_solidity(self, spaces_count=0, new_line=False):
+        return (
+            super().to_solidity(spaces_count, new_line)
+            + f"{' ' * spaces_count}continue"
+        )
 
 
 class YulLeave(YulBase):
     node_type: typing.Literal[YulNodeType.YUL_LEAVE] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0, new_line=False):
-        return super().parse(spaces_count, new_line) + f"{' ' * spaces_count}leave"
+    def to_solidity(self, spaces_count=0, new_line=False):
+        return (
+            super().to_solidity(spaces_count, new_line) + f"{' ' * spaces_count}leave"
+        )

@@ -1,3 +1,4 @@
+import re
 from typing import Dict, List, Optional, Union
 import typing
 from pydantic import BaseModel, Field
@@ -103,9 +104,9 @@ def build_function_header(node: ASTNode, spaces_count=0):
 
     overrides = " override" if node.overrides else ""
     virtual = " virtual" if node.virtual else ""
-    return_params = node.return_parameters.parse()
+    return_params = node.return_parameters.to_solidity()
     modifiers = (
-        f" {', '.join([mod.parse() for mod in node.modifiers])}"
+        f" {', '.join([mod.to_solidity() for mod in node.modifiers])}"
         if node.modifiers
         else ""
     )
@@ -114,9 +115,9 @@ def build_function_header(node: ASTNode, spaces_count=0):
         return_params = f" returns ({return_params})"
 
     if node.kind == "constructor":
-        return f"{' ' * spaces_count}constructor({node.parameters.parse()})"
+        return f"{' ' * spaces_count}constructor({node.parameters.to_solidity()})"
     else:
-        return f"{' ' * spaces_count}{node.kind}{name}({node.parameters.parse()}){visibility}{virtual}{mutability}{overrides}{modifiers}{return_params}"
+        return f"{' ' * spaces_count}{node.kind}{name}({node.parameters.to_solidity()}){visibility}{virtual}{mutability}{overrides}{modifiers}{return_params}"
 
 
 class SourceUnit(NodeBase):
@@ -131,10 +132,10 @@ class SourceUnit(NodeBase):
     absolute_path: Optional[str] = Field(default=None, alias="absolutePath")
     node_type: typing.Literal[NodeType.SOURCE_UNIT] = Field(alias="nodeType")
 
-    def parse(self, spaces_count: int = 0):
-        result = super().parse(spaces_count)
+    def to_solidity(self, spaces_count: int = 0):
+        result = super().to_solidity(spaces_count)
         for node in self.nodes:
-            result += node.parse(spaces_count)
+            result += node.to_solidity(spaces_count)
 
         return result
 
@@ -143,8 +144,8 @@ class PragmaDirective(NodeBase):
     literals: List[str]
     node_type: typing.Literal[NodeType.PRAGMA_DIRECTIVE] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        result = super().parse(spaces_count)
+    def to_solidity(self, spaces_count=0):
+        result = super().to_solidity(spaces_count)
         print(spaces_count)
         return (
             result
@@ -164,9 +165,9 @@ class ImportDirective(NodeBase):
 
     node_type: typing.Literal[NodeType.IMPORT_DIRECTIVE] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
+            super().to_solidity(spaces_count)
             + f"{' ' * spaces_count}import {self.absolute_path};"
         )
 
@@ -194,21 +195,21 @@ class ContractDefinition(NodeBase):
 
     node_type: typing.Literal[NodeType.CONTRACT_DEFINITION] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         base_contracts = ""
         if len(self.base_contracts):
-            base_contracts = [base.parse() for base in self.base_contracts]
+            base_contracts = [base.to_solidity() for base in self.base_contracts]
             base_contracts = f" is {', '.join(base_contracts)}"
         code = (
-            super().parse(spaces_count)
+            super().to_solidity(spaces_count)
             + f"{self.contract_kind} {self.name}{base_contracts} {{{f' // {self.comment.text}' if self.comment else ''}\n"
         )
         spaces_count = 4
         for contract_node in self.nodes:
             if contract_node.node_type == NodeType.VARIABLE_DECLARATION:
-                code += f"{contract_node.parse(spaces_count)};{f' // {contract_node.comment.text}' if contract_node.comment else ''}\n"
+                code += f"{contract_node.to_solidity(spaces_count)};{f' // {contract_node.comment.text}' if contract_node.comment else ''}\n"
                 continue
-            code += contract_node.parse(spaces_count)
+            code += contract_node.to_solidity(spaces_count)
         code += "}\n\n"
 
         return code
@@ -223,8 +224,8 @@ class IdentifierPath(NodeBase):
 
     node_type: typing.Literal[NodeType.IDENTIFIER_PATH] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        return super().parse(spaces_count) + f"{' ' * spaces_count}{self.name}"
+    def to_solidity(self, spaces_count=0):
+        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}{self.name}"
 
 
 class InheritanceSpecifier(NodeBase):
@@ -233,10 +234,10 @@ class InheritanceSpecifier(NodeBase):
 
     node_type: typing.Literal[NodeType.INHERITANCE_SPECIFIER] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        result = super().parse(spaces_count) + self.base_name.parse()
+    def to_solidity(self, spaces_count=0):
+        result = super().to_solidity(spaces_count) + self.base_name.to_solidity()
         if self.arguments:
-            args = [arg.parse() for arg in self.arguments]
+            args = [arg.to_solidity() for arg in self.arguments]
             result += f"({', '.join(args)})"
         return result
 
@@ -248,8 +249,8 @@ class FunctionNode(BaseModel, Node):
 
     node_type: typing.Literal[NodeType.FUNCTION_NODE] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        return self.function.parse() if self.function else self.operator or ""
+    def to_solidity(self, spaces_count=0):
+        return self.function.to_solidity() if self.function else self.operator or ""
 
 
 class UsingForDirective(NodeBase):
@@ -262,20 +263,20 @@ class UsingForDirective(NodeBase):
 
     node_type: typing.Literal[NodeType.USING_FOR_DIRECTIVE] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        result = super().parse(spaces_count) + f"{' ' * spaces_count}using "
+    def to_solidity(self, spaces_count=0):
+        result = super().to_solidity(spaces_count) + f"{' ' * spaces_count}using "
 
         if self.library_name:
-            result += self.library_name.parse()
+            result += self.library_name.to_solidity()
 
         if self.function_list:
-            funcs = [f.parse() for f in self.function_list]
+            funcs = [f.to_solidity() for f in self.function_list]
             result += f"{{{', '.join(funcs)}}}"
 
         result += " for "
 
         if self.type_name:
-            result += self.type_name.parse()
+            result += self.type_name.to_solidity()
         else:
             result += "*"
 
@@ -296,13 +297,16 @@ class StructDefinition(NodeBase):
 
     node_type: typing.Literal[NodeType.STRUCT_DEFINITION] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         code = (
-            super().parse(spaces_count) + f"{' ' * spaces_count}struct {self.name} {{\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}struct {self.name} {{\n"
         )
         spaces_count += 4
         for member in self.members:
-            code += f"{' ' * spaces_count}{member.type_name.parse()} {member.name};\n"
+            code += (
+                f"{' ' * spaces_count}{member.type_name.to_solidity()} {member.name};\n"
+            )
         spaces_count -= 4
 
         code += f"{' ' * spaces_count}}}\n"
@@ -318,9 +322,10 @@ class EnumDefinition(NodeBase):
 
     node_type: typing.Literal[NodeType.ENUM_DEFINITION] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         result = (
-            super().parse(spaces_count) + f"{' ' * spaces_count}enum {self.name} {{\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}enum {self.name} {{\n"
         )
         spaces_count += 4
         members = [f"{' ' * spaces_count}{member.name}" for member in self.members]
@@ -336,8 +341,8 @@ class EnumValue(NodeBase):
 
     node_type: typing.Literal[NodeType.ENUM_VALUE] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        return super().parse(spaces_count) + f"{' ' * spaces_count}{self.name}"
+    def to_solidity(self, spaces_count=0):
+        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}{self.name}"
 
 
 class UserDefinedValueTypeDefinition(NodeBase):
@@ -350,9 +355,9 @@ class UserDefinedValueTypeDefinition(NodeBase):
         alias="nodeType"
     )
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
+            super().to_solidity(spaces_count)
             + f"{' ' * spaces_count}struct {self.name} {{\n{' ' * spaces_count}}}\n"
         )
 
@@ -362,7 +367,7 @@ class ParameterList(NodeBase):
 
     node_type: typing.Literal[NodeType.PARAMETER_LIST] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         parsed = []
         for parameter in self.parameters:
             storage_location = (
@@ -370,12 +375,12 @@ class ParameterList(NodeBase):
                 if parameter.storage_location != "default"
                 else ""
             )
-            var_type = parameter.type_name.parse()
+            var_type = parameter.type_name.to_solidity()
             name = f" {parameter.name}" if parameter.name else ""
             if parameter.node_type == NodeType.VARIABLE_DECLARATION:
                 indexed = " indexed" if parameter.indexed else ""
             parsed.append(f"{var_type}{indexed}{storage_location}{name}")
-        return super().parse() + ", ".join(parsed)
+        return super().to_solidity() + ", ".join(parsed)
 
 
 class OverrideSpecifier(NodeBase):
@@ -383,7 +388,7 @@ class OverrideSpecifier(NodeBase):
 
     node_type: typing.Literal[NodeType.OVERRIDE_SPECIFIER] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         if self.overrides:
             overrides = [f.name for f in self.overrides]
         return f"{' ' * spaces_count}override({', '.join(overrides)}) "
@@ -409,11 +414,13 @@ class FunctionDefinition(NodeBase):
 
     node_type: typing.Literal[NodeType.FUNCTION_DEFINITION] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        result = super().parse(spaces_count) + build_function_header(self, spaces_count)
+    def to_solidity(self, spaces_count=0):
+        result = super().to_solidity(spaces_count) + build_function_header(
+            self, spaces_count
+        )
         if not self.body:
             return result + ";\n\n"
-        body = self.body.parse(spaces_count + 4)
+        body = self.body.to_solidity(spaces_count + 4)
         if body:
             result += f" {{\n{body}{' ' * spaces_count}}}\n\n"
         else:
@@ -442,17 +449,17 @@ class VariableDeclaration(TypeBase):
 
     node_type: typing.Literal[NodeType.VARIABLE_DECLARATION] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         storage_location = (
             f" {self.storage_location}" if self.storage_location != "default" else ""
         )
         visibility = f" {self.visibility}" if self.visibility != "internal" else ""
         value = ""
         if self.value:
-            value = f" = {self.value.parse()}"
+            value = f" = {self.value.to_solidity()}"
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}{self.type_name.parse()}{visibility}{storage_location} {self.name}{value}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.type_name.to_solidity()}{visibility}{storage_location} {self.name}{value}"
         )
 
 
@@ -471,13 +478,13 @@ class ModifierDefinition(NodeBase):
 
     node_type: typing.Literal[NodeType.MODIFIER_DEFINITION] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         result = (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}modifier {self.name}({self.parameters.parse()}) {{\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}modifier {self.name}({self.parameters.to_solidity()}) {{\n"
         )
         spaces_count += 4
-        result += self.body.parse(spaces_count)
+        result += self.body.to_solidity(spaces_count)
         spaces_count -= 4
         result += f"{' ' * spaces_count}}}\n"
         return result
@@ -489,13 +496,13 @@ class ModifierInvocation(NodeBase):
     kind: Optional[str] = Field(default=None)
     node_type: typing.Literal[NodeType.MODIFIER_INVOCATION] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         arguments = (
-            f"({', '.join([arg.parse() for arg in self.arguments])})"
+            f"({', '.join([arg.to_solidity() for arg in self.arguments])})"
             if self.arguments
             else ""
         )
-        return f"{' ' * spaces_count}{self.modifier_name.parse()}{arguments}"
+        return f"{' ' * spaces_count}{self.modifier_name.to_solidity()}{arguments}"
 
 
 class EventDefinition(NodeBase):
@@ -507,10 +514,10 @@ class EventDefinition(NodeBase):
     event_selector: Optional[str] = Field(default=None, alias="eventSelector")
     node_type: typing.Literal[NodeType.EVENT_DEFINITION] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}event {self.name}({self.parameters.parse()});\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}event {self.name}({self.parameters.to_solidity()});\n"
         )
 
 
@@ -522,10 +529,10 @@ class ErrorDefinition(NodeBase):
     error_selector: Optional[str] = Field(default=None, alias="errorSelector")
     node_type: typing.Literal[NodeType.ERROR_DEFINITION] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}error {self.name}({self.parameters.parse()});\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}error {self.name}({self.parameters.to_solidity()});\n"
         )
 
 
@@ -534,13 +541,13 @@ class ElementaryTypeName(TypeBase):
     state_mutability: Optional[str] = Field(default=None, alias="stateMutability")
     node_type: typing.Literal[NodeType.ELEMENTARY_TYPE_NAME] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         if self.name == "address" and self.state_mutability == "payable":
             return (
-                super().parse(spaces_count)
+                super().to_solidity(spaces_count)
                 + f"{' ' * spaces_count}{self.state_mutability}"
             )
-        return super().parse(spaces_count) + f"{' ' * spaces_count}{self.name}"
+        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}{self.name}"
 
 
 class UserDefinedTypeName(TypeBase):
@@ -550,9 +557,10 @@ class UserDefinedTypeName(TypeBase):
     )
     node_type: typing.Literal[NodeType.USER_DEFINED_TYPE_NAME] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count) + f"{' ' * spaces_count}{self.path_node.name}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.path_node.name}"
         )
 
 
@@ -563,8 +571,8 @@ class FunctionTypeName(TypeBase):
     return_parameter_types: List[ParameterList] = Field(alias="returnParameterTypes")
     node_type: typing.Literal[NodeType.FUNCTION_TYPE_NAME] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        return super().parse(spaces_count) + f"{build_function_header(self)};\n"
+    def to_solidity(self, spaces_count=0):
+        return super().to_solidity(spaces_count) + f"{build_function_header(self)};\n"
 
 
 class Mapping(TypeBase):
@@ -576,11 +584,11 @@ class Mapping(TypeBase):
     value_name_location: str = Field(alias="valueNameLocation")
     node_type: typing.Literal[NodeType.MAPPING] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        key_type = self.key_type.parse()
-        value_type = self.value_type.parse()
+    def to_solidity(self, spaces_count=0):
+        key_type = self.key_type.to_solidity()
+        value_type = self.value_type.to_solidity()
         return (
-            super().parse(spaces_count)
+            super().to_solidity(spaces_count)
             + f"{' ' * spaces_count}mapping({key_type} => {value_type})"
         )
 
@@ -590,10 +598,10 @@ class ArrayTypeName(TypeBase):
     length: Optional[Expression] = Field(default=None)
     node_type: typing.Literal[NodeType.ARRAY_TYPE_NAME] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}{self.base_type.parse()}[{self.length or ''}]"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.base_type.to_solidity()}[{self.length or ''}]"
         )
 
 
@@ -607,42 +615,46 @@ class InlineAssembly(NodeBase):
     flags: Optional[List[str]] = Field(default=None)
     node_type: typing.Literal[NodeType.INLINE_ASSEMBLY] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}assembly {self.AST.parse(spaces_count)}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}assembly {self.AST.to_solidity(spaces_count)}"
         )
 
 
 class Block(NodeBase):
     statements: List[Statement]
-    node_type: typing.Literal[NodeType.BLOCK] = Field(alias="nodeType")
+    node_type: typing.Literal[NodeType.BLOCK, NodeType.UNCHECKED_BLOCK] = Field(
+        alias="nodeType"
+    )
 
-    def parse(self, spaces_count=0):
-        result = super().parse(spaces_count)
+    def to_solidity(self, spaces_count=0):
+        result = super().to_solidity(spaces_count)
         for statement in self.statements:
             if not statement.node_type in (
                 NodeType.COMMENT,
                 NodeType.MULTILINE_COMMENT,
             ):
-                result += statement.parse(spaces_count)
+                st = statement.to_solidity(spaces_count)
                 if (
                     statement.node_type != NodeType.INLINE_ASSEMBLY
-                    and not result.endswith(";\n")
-                    and not result.endswith("}\n")
+                    and not st.endswith(";\n")
+                    and not st.endswith("}\n")
+                    and not re.search(r"\/\/ .+", st)
                 ):
-                    result += f";{f' // {statement.comment.text}' if statement.comment else ''}\n"
+                    st += f";{f' // {statement.comment.text}' if statement.comment else ''}\n"
+                result += st
 
             else:
-                result += statement.parse(spaces_count)
+                result += statement.to_solidity(spaces_count)
         return result
 
 
 class PlaceholderStatement(NodeBase):
     node_type: typing.Literal[NodeType.PLACEHOLDER_STATEMENT] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        return super().parse(spaces_count) + f"{' ' * spaces_count}_;\n"
+    def to_solidity(self, spaces_count=0):
+        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}_;\n"
 
 
 class IfStatement(NodeBase):
@@ -651,19 +663,19 @@ class IfStatement(NodeBase):
     false_body: Optional[Statement] = Field(default=None, alias="falseBody")
     node_type: typing.Literal[NodeType.IF_STATEMENT] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         result = (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}if ({self.condition.parse()}) {{\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}if ({self.condition.to_solidity()}) {{\n"
         )
         spaces_count += 4
-        result += self.true_body.parse(spaces_count)
+        result += self.true_body.to_solidity(spaces_count)
         spaces_count -= 4
 
         if self.false_body:
             result += f"{' ' * spaces_count}}} else {{\n"
             spaces_count += 4
-            result += self.false_body.parse(spaces_count)
+            result += self.false_body.to_solidity(spaces_count)
             spaces_count -= 4
 
         result += f"{' ' * spaces_count}}}\n"
@@ -676,13 +688,13 @@ class TryCatchClause(NodeBase):
     block: Block
     node_type: typing.Literal[NodeType.TRY_CATCH_CLAUSE] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        result = super().parse(spaces_count) + f"{' ' * spaces_count}catch "
+    def to_solidity(self, spaces_count=0):
+        result = super().to_solidity(spaces_count) + f"{' ' * spaces_count}catch "
         if self.parameters:
-            result += f"({self.parameters.parse()}) "
+            result += f"({self.parameters.to_solidity()}) "
         result += "{\n"
         spaces_count += 4
-        result += self.block.parse(spaces_count)
+        result += self.block.to_solidity(spaces_count)
         spaces_count -= 4
         result += f"{' ' * spaces_count}}}\n"
         return result
@@ -693,14 +705,14 @@ class TryStatement(NodeBase):
     clauses: List[TryCatchClause]
     node_type: typing.Literal[NodeType.TRY_STATEMENT] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        result = super().parse(spaces_count) + f"{' ' * spaces_count}try "
+    def to_solidity(self, spaces_count=0):
+        result = super().to_solidity(spaces_count) + f"{' ' * spaces_count}try "
         if self.external_call:
-            result += self.external_call.parse()
+            result += self.external_call.to_solidity()
         result += " {\n"
 
         for clause in self.clauses:
-            result += clause.parse(spaces_count)
+            result += clause.to_solidity(spaces_count)
 
         result += f"{' ' * spaces_count}}}\n"
         return result
@@ -711,10 +723,10 @@ class WhileStatement(NodeBase):  # DoWhileStatement
     body: Statement
     node_type: typing.Literal[NodeType.WHILE_STATEMENT] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         result = (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}while ({self.condition.parse()}) {{\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}while ({self.condition.to_solidity()}) {{\n"
         )
         spaces_count += 4
         result += self.body(spaces_count)
@@ -737,17 +749,17 @@ class ForStatement(NodeBase):
     )
     node_type: typing.Literal[NodeType.FOR_STATEMENT] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        result = super().parse(spaces_count) + f"{' ' * spaces_count}for ("
+    def to_solidity(self, spaces_count=0):
+        result = super().to_solidity(spaces_count) + f"{' ' * spaces_count}for ("
         if self.intialization_expression:
-            result += f"{self.intialization_expression.parse()}; "
+            result += f"{self.intialization_expression.to_solidity()}; "
         if self.condition:
-            result += f"{self.condition.parse()}; "
+            result += f"{self.condition.to_solidity()}; "
         if self.loop_expression:
-            result += f"{self.loop_expression.parse()}"
+            result += f"{self.loop_expression.to_solidity()}"
         result += f") {{\n"
         spaces_count += 4
-        result += self.body.parse(spaces_count)
+        result += self.body.to_solidity(spaces_count)
         spaces_count -= 4
         result += f"{' ' * spaces_count}}}\n"
         return result
@@ -756,15 +768,15 @@ class ForStatement(NodeBase):
 class Continue(NodeBase):
     node_type: typing.Literal[NodeType.CONTINUE] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        return super().parse(spaces_count) + f"{' ' * spaces_count}continue"
+    def to_solidity(self, spaces_count=0):
+        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}continue"
 
 
 class Break(NodeBase):
     node_type: typing.Literal[NodeType.BREAK] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        return super().parse(spaces_count) + f"{' ' * spaces_count}break"
+    def to_solidity(self, spaces_count=0):
+        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}break"
 
 
 class Return(NodeBase):
@@ -774,34 +786,31 @@ class Return(NodeBase):
     )
     node_type: typing.Literal[NodeType.RETURN] = Field(alias="nodeType")
 
-    class Config:
-        extra = "forbid"
-
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         if self.expression:
             return (
-                super().parse(spaces_count)
-                + f"{' ' * spaces_count}return {self.expression.parse()}"
+                super().to_solidity(spaces_count)
+                + f"{' ' * spaces_count}return {self.expression.to_solidity()}"
             )
         else:
-            return super().parse(spaces_count) + f"{' ' * spaces_count}return"
+            return super().to_solidity(spaces_count) + f"{' ' * spaces_count}return"
 
 
 class Throw(NodeBase):
     node_type: typing.Literal[NodeType.THROW] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        return super().parse(spaces_count) + f"{' ' * spaces_count}throw;\n"
+    def to_solidity(self, spaces_count=0):
+        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}throw;\n"
 
 
 class EmitStatement(NodeBase):
     event_call: "FunctionCall" = Field(alias="eventCall")
     node_type: typing.Literal[NodeType.EMIT_STATEMENT] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * (spaces_count)}emit {self.event_call.parse()};\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * (spaces_count)}emit {self.event_call.to_solidity()};\n"
         )
 
 
@@ -809,10 +818,10 @@ class RevertStatement(NodeBase):
     error_call: Optional["FunctionCall"] = Field(default=None, alias="errorCall")
     node_type: typing.Literal[NodeType.REVERT_STATEMENT] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}revert({self.error_call.parse()});\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}revert({self.error_call.to_solidity()});\n"
         )
 
 
@@ -824,30 +833,35 @@ class VariableDeclarationStatement(NodeBase):
         alias="nodeType"
     )
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         declarations = []
+        comment = ""
         for declaration in self.declarations:
             if declaration is None:
                 declarations.append("")
             else:
-                declarations.append(declaration.parse())
+                declarations.append(declaration.to_solidity())
+                if declaration.comment:
+                    comment = f"; // {declaration.comment.text}\n"
         if len(declarations) > 1:
             declarations_str = f"({', '.join(declarations)})"
         else:
             declarations_str = declarations[0]
         left = declarations_str
-        right = f" = {self.initial_value.parse()}" if self.initial_value else ""
-        return super().parse(spaces_count) + f"{' ' * (spaces_count)}{left}{right}"
+        right = f" = {self.initial_value.to_solidity()}" if self.initial_value else ""
+        return (
+            super().to_solidity(spaces_count) + f"{' ' * (spaces_count)}{left}{right}" + comment
+        )
 
 
 class ExpressionStatement(NodeBase):
     expression: Expression
     node_type: typing.Literal[NodeType.EXPRESSION_STATEMENT] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * (spaces_count)}{self.expression.parse()}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * (spaces_count)}{self.expression.to_solidity()}"
         )
 
 
@@ -857,10 +871,10 @@ class Conditional(ExpressionBase):  # TODO maybe errors
     false_expression: Expression = Field(alias="falseExpression")
     node_type: typing.Literal[NodeType.CONDITIONAL] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}{self.condition.parse()} ? {self.true_expression.parse()} : {self.false_expression.parse()}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.condition.to_solidity()} ? {self.true_expression.to_solidity()} : {self.false_expression.to_solidity()}"
         )
 
 
@@ -870,10 +884,10 @@ class Assignment(ExpressionBase):
     right_hand_side: Expression = Field(default=None, alias="rightHandSide")
     node_type: typing.Literal[NodeType.ASSIGNMENT] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}{self.left_hand_side.parse()} {self.operator} {self.right_hand_side.parse()}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.left_hand_side.to_solidity()} {self.operator} {self.right_hand_side.to_solidity()}"
         )
 
 
@@ -882,11 +896,11 @@ class TupleExpression(ExpressionBase):
     components: List[Expression]
     node_type: typing.Literal[NodeType.TUPLE_EXPRESSION] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        res_tuple = [component.parse() for component in self.components]
+    def to_solidity(self, spaces_count=0):
+        res_tuple = [component.to_solidity() for component in self.components]
 
         return (
-            super().parse(spaces_count)
+            super().to_solidity(spaces_count)
             + f"{' ' * spaces_count}({', '.join(res_tuple)})"
         )
 
@@ -898,16 +912,16 @@ class UnaryOperation(ExpressionBase):
     function: Optional[int] = Field(default=None)
     node_type: typing.Literal[NodeType.UNARY_OPERATION] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         if self.prefix:
             return (
-                super().parse(spaces_count)
-                + f"{' ' * spaces_count}{self.operator}{self.sub_expression.parse()}"
+                super().to_solidity(spaces_count)
+                + f"{' ' * spaces_count}{self.operator}{self.sub_expression.to_solidity()}"
             )
         else:
             return (
-                super().parse(spaces_count)
-                + f"{' ' * spaces_count}{self.sub_expression.parse()}{self.operator}"
+                super().to_solidity(spaces_count)
+                + f"{' ' * spaces_count}{self.sub_expression.to_solidity()}{self.operator}"
             )
 
 
@@ -919,10 +933,10 @@ class BinaryOperation(ExpressionBase):
     function: Optional[int] = Field(default=None)
     node_type: typing.Literal[NodeType.BINARY_OPERATION] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}{self.left_expression.parse()} {self.operator} {self.right_expression.parse()}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.left_expression.to_solidity()} {self.operator} {self.right_expression.to_solidity()}"
         )
 
 
@@ -935,16 +949,16 @@ class FunctionCall(ExpressionBase):
     kind: Optional[str] = Field(default=None)
     node_type: typing.Literal[NodeType.FUNCTION_CALL] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        arguments = [arg.parse() for arg in self.arguments]
+    def to_solidity(self, spaces_count=0):
+        arguments = [arg.to_solidity() for arg in self.arguments]
         if len(self.names) > 0:
             arguments = [f"{name}: {arg}" for name, arg in zip(self.names, arguments)]
             arguments_str = f"{{{', '.join(arguments)}}}"
         else:
             arguments_str = ", ".join(arguments)
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}{self.expression.parse()}({arguments_str})"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.expression.to_solidity()}({arguments_str})"
         )
 
 
@@ -954,14 +968,14 @@ class FunctionCallOptions(ExpressionBase):
     options: List[Expression]
     node_type: typing.Literal[NodeType.FUNCTION_CALL_OPTIONS] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         options = [
-            f"{name}: {option.parse()}"
+            f"{name}: {option.to_solidity()}"
             for name, option in zip(self.names, self.options)
         ]
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}{self.expression.parse()}{{{' ,'.join(options)}}}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.expression.to_solidity()}{{{' ,'.join(options)}}}"
         )
 
 
@@ -969,10 +983,10 @@ class NewExpression(ExpressionBase):
     type_name: TypeName = Field(alias="typeName")
     node_type: typing.Literal[NodeType.NEW_EXPRESSION] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}new {self.type_name.parse()}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}new {self.type_name.to_solidity()}"
         )
 
 
@@ -985,10 +999,10 @@ class MemberAccess(ExpressionBase):
     )
     node_type: typing.Literal[NodeType.MEMBER_ACCESS] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}{self.expression.parse()}.{self.member_name}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.expression.to_solidity()}.{self.member_name}"
         )
 
 
@@ -999,11 +1013,11 @@ class IndexAccess(ExpressionBase):
     )
     node_type: typing.Literal[NodeType.INDEX_ACCESS] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}{self.base_expression.parse()}"
-            + f"[{self.index_expression.parse() if self.index_expression else ''}]"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.base_expression.to_solidity()}"
+            + f"[{self.index_expression.to_solidity() if self.index_expression else ''}]"
         )
 
 
@@ -1015,11 +1029,11 @@ class IndexRangeAccess(ExpressionBase):
     end_expression: Optional[Expression] = Field(default=None, alias="endExpression")
     node_type: typing.Literal[NodeType.INDEX_RANGE_ACCESS] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}{self.base_expression.parse()}"
-            + f"[{self.start_expression.parse()}:{self.end_expression.parse()}]"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.base_expression.to_solidity()}"
+            + f"[{self.start_expression.to_solidity()}:{self.end_expression.to_solidity()}]"
         )
 
 
@@ -1033,8 +1047,8 @@ class Identifier(TypeBase):
     )
     node_type: typing.Literal[NodeType.IDENTIFIER] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
-        return super().parse(spaces_count) + f"{' ' * spaces_count}{self.name}"
+    def to_solidity(self, spaces_count=0):
+        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}{self.name}"
 
 
 class ElementaryTypeNameExpression(ExpressionBase):
@@ -1043,10 +1057,10 @@ class ElementaryTypeNameExpression(ExpressionBase):
         alias="nodeType"
     )
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         return (
-            super().parse(spaces_count)
-            + f"{' ' * spaces_count}{self.type_name.parse()}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.type_name.to_solidity()}"
         )
 
 
@@ -1057,12 +1071,12 @@ class Literal(ExpressionBase):
     subdenomination: Optional[str] = Field(default=None)
     node_type: typing.Literal[NodeType.LITERAL] = Field(alias="nodeType")
 
-    def parse(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0):
         subdenomination = f" {self.subdenomination}" if self.subdenomination else ""
         if self.kind == "string":
             return f"{' ' * spaces_count}{repr(self.value)}{subdenomination}"
         return (
-            super().parse(spaces_count)
+            super().to_solidity(spaces_count)
             + f"{' ' * spaces_count}{self.value}{subdenomination}"
         )
 

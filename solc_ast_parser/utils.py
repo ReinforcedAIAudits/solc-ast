@@ -58,9 +58,9 @@ def traverse_ast(
 
         if isinstance(value, list):
             for item in value:
-                if hasattr(item, "__fields__") and hasattr(item, "node_type"):
+                if hasattr(item, "model_fields") and hasattr(item, "node_type"):
                     traverse_ast(item, visitor, node)
-        elif hasattr(value, "__fields__") and hasattr(value, "node_type"):
+        elif hasattr(value, "model_fields") and hasattr(value, "node_type"):
             traverse_ast(value, visitor, node)
 
 

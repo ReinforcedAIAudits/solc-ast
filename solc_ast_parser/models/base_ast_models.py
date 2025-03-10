@@ -1,12 +1,13 @@
 from abc import ABC
 import enum
 from typing import List, Optional, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class NodeType(enum.StrEnum):
     SOURCE_UNIT = "SourceUnit"
     BLOCK = "Block"
+    UNCHECKED_BLOCK = "UncheckedBlock"
     PRAGMA_DIRECTIVE = "PragmaDirective"
     CONTRACT_DEFINITION = "ContractDefinition"
     FUNCTION_DEFINITION = "FunctionDefinition"
@@ -97,9 +98,8 @@ class Comment(BaseModel):
     text: str
     is_pure: bool = Field(default=False, alias="isPure")
 
-    def parse(self, spaces_count: int = 0) -> str:
+    def to_solidity(self, spaces_count: int = 0) -> str:
         return f"{' ' * spaces_count}// {self.text}\n"
-
 
 
 class MultilineComment(BaseModel):
@@ -108,39 +108,46 @@ class MultilineComment(BaseModel):
     node_type: NodeType = Field(alias="nodeType")
     text: str
 
-    def parse(self, spaces_count: int = 0) -> str:
+    def to_solidity(self, spaces_count: int = 0) -> str:
         return f"{' ' * spaces_count}{self.text}\n"
 
 
 class Node(ABC):
-    def parse(self, spaces_count: int = 0) -> str:
+    def to_solidity(self, spaces_count: int = 0) -> str:
         raise NotImplementedError
 
+
 class NodeBase(BaseModel, Node):
+    model_config = ConfigDict(extra="forbid")
+
     id: int
     src: str
     node_type: NodeType = Field(alias="nodeType")
     comment: Optional[Comment] = Field(default=None)
     documentation: Optional[str] = Field(default=None)
 
-    def parse(self, spaces_count = 0):
-        return f"{' ' * spaces_count}/// {self.documentation}\n" if self.documentation else ""
-    
-    class Config:
-        extra = "forbid"
+    def to_solidity(self, spaces_count=0):
+        return (
+            f"{' ' * spaces_count}/// {self.documentation}\n"
+            if self.documentation
+            else ""
+        )
 
 
 class YulBase(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     src: str
     node_type: YulNodeType = Field(alias="nodeType")
     native_src: str = Field(alias="nativeSrc")
     documentation: Optional[str] = Field(default=None)
 
-    def parse(self, spaces_count = 0, new_line: bool = False):
-        return f"{' ' * spaces_count}/// {self.documentation}\n" if self.documentation else ""
-    
-    class Config:
-        extra = "forbid"
+    def to_solidity(self, spaces_count=0, new_line: bool = False):
+        return (
+            f"{' ' * spaces_count}/// {self.documentation}\n"
+            if self.documentation
+            else ""
+        )
 
 
 class TypeBase(NodeBase):

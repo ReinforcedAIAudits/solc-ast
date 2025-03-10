@@ -64,12 +64,15 @@ def insert_node_into_node(
         return node
 
     if new_node.node_type == NodeType.COMMENT and not new_node.is_pure:
+        if parent_node.node_type == NodeType.VARIABLE_DECLARATION:
+            parent_node.comment = new_node
+            return node
         node.comment = new_node
         return node
 
     if parent_node.node_type in (NodeType.SOURCE_UNIT, NodeType.CONTRACT_DEFINITION):
         parent_node.nodes.insert(parent_node.nodes.index(node), new_node)
-    elif parent_node.node_type == NodeType.BLOCK:
+    elif parent_node.node_type in [NodeType.BLOCK, NodeType.UNCHECKED_BLOCK]:
         parent_node.statements.insert(parent_node.statements.index(node), new_node)
     else:
         parent_node.comment = new_node

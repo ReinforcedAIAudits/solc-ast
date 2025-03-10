@@ -362,11 +362,11 @@ def find_parent_nodes(
                 for item in value:
                     if item == target_node:
                         parents.append(node)
-                    elif hasattr(item, "__fields__") and hasattr(item, "node_type"):
+                    elif hasattr(item, "model_fields") and hasattr(item, "node_type"):
                         collect_parents(item)
             elif value == target_node:
                 parents.append(node)
-            elif hasattr(value, "__fields__") and hasattr(value, "node_type"):
+            elif hasattr(value, "model_fields") and hasattr(value, "node_type"):
                 collect_parents(value)
 
     traverse_ast(ast, lambda n, p: collect_parents(n))

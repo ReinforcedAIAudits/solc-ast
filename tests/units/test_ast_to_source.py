@@ -6,14 +6,16 @@ import solcx
 from solc_ast_parser.models.ast_models import SourceUnit
 
 
-
 CONTRACT_PATH = join(dirname(__file__), "..", "examples")
+
 
 class AstToSourceTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.contracts = [
-            (f.split('.')[0], f) for f in listdir(CONTRACT_PATH) if isfile(join(CONTRACT_PATH, f) and f.endswith(".sol"))
+            (f.split(".")[0], f)
+            for f in listdir(CONTRACT_PATH)
+            if isfile(join(CONTRACT_PATH, f) and f.endswith(".sol"))
         ]
         solcx.install_solc()
 
@@ -34,9 +36,11 @@ class AstToSourceTestCase(unittest.TestCase):
         contract_name = list(solc_output.keys())[0]
         ast = SourceUnit(**solc_output[contract_name]["ast"])
         try:
-            generated = ast.parse()
+            generated = ast.to_solidity()
         except Exception as ex:
-            self.fail(f"Exception occurred while parsing {contract_name} contract code: {ex}")
+            self.fail(
+                f"Exception occurred while parsing {contract_name} contract code: {ex}"
+            )
 
         source = source_code.replace("\n", "").replace('"', "'")
         generated = generated.replace("\n", "")
