@@ -3,8 +3,6 @@ from os.path import isfile, join, dirname
 from os import listdir
 import unittest
 import solcx
-
-from solc_ast_parser import parse_ast_to_solidity
 from solc_ast_parser.models.ast_models import SourceUnit
 
 
@@ -36,7 +34,7 @@ class AstToSourceTestCase(unittest.TestCase):
         contract_name = list(solc_output.keys())[0]
         ast = SourceUnit(**solc_output[contract_name]["ast"])
         try:
-            generated = parse_ast_to_solidity(ast)
+            generated = ast.parse()
         except Exception as ex:
             self.fail(f"Exception occurred while parsing {contract_name} contract code: {ex}")
 

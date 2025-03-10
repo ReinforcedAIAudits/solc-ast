@@ -2,8 +2,6 @@ from os.path import isfile, join, dirname
 from os import listdir
 import unittest
 import solcx
-
-from solc_ast_parser import parse_ast_to_solidity
 from solc_ast_parser.comments import insert_comments_into_ast
 from solc_ast_parser.utils import (
     create_ast_with_standart_input,
@@ -41,7 +39,7 @@ class AstToSourceTestCase(unittest.TestCase):
                 f"Exception occurred while parsing {contract_filename} contract code: {ex}"
             )
 
-        generated = parse_ast_to_solidity(ast_with_comments)
+        generated = ast_with_comments.parse()
         source = source_code.replace("\n", "").replace('"', "'")
         generated = generated.replace("\n", "")
 
