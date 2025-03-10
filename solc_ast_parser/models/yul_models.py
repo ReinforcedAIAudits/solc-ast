@@ -1,4 +1,5 @@
 from typing import List, Optional, Union
+import typing
 
 from pydantic import Field
 from solc_ast_parser.models.base_ast_models import YulBase, YulNodeType
@@ -26,6 +27,7 @@ YulNode = Union["YulBlock", YulStatement, YulExpression]
 
 class YulBlock(YulBase):
     statements: List[YulStatement]
+    node_type: typing.Literal[YulNodeType.YUL_BLOCK] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0, new_line: bool = False):
         if len(self.statements) == 1 and not new_line:
@@ -43,6 +45,7 @@ class YulBlock(YulBase):
 class YulTypedName(YulBase):
     name: str
     type: str
+    node_type: typing.Literal[YulNodeType.YUL_TYPED_NAME] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0, new_line=False):
         return (
@@ -55,6 +58,7 @@ class YulLiteral(YulBase):
     hex_value: Optional[str] = Field(default=None, alias="hexValue")
     type: str
     value: str
+    node_type: typing.Literal[YulNodeType.YUL_LITERAL] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0, new_line=False):
         return (
@@ -64,6 +68,7 @@ class YulLiteral(YulBase):
 
 class YulIdentifier(YulBase):
     name: str
+    node_type: typing.Literal[YulNodeType.YUL_IDENTIFIER] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0, new_line=False):
         return (
@@ -73,6 +78,7 @@ class YulIdentifier(YulBase):
 
 class YulBuiltinName(YulBase):
     name: str
+    node_type: typing.Literal[YulNodeType.YUL_BUILTIN_NAME] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0, new_line=False):
         return (
@@ -83,6 +89,7 @@ class YulBuiltinName(YulBase):
 class YulAssignment(YulBase):
     variable_names: List[YulIdentifier] = Field(alias="variableNames")
     value: Optional[YulExpression] = Field(default=None)
+    node_type: typing.Literal[YulNodeType.YUL_ASSIGNMENT] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0, new_line=False):
         return (
@@ -94,6 +101,7 @@ class YulAssignment(YulBase):
 class YulFunctionCall(YulBase):
     function_name: YulIdentifier = Field(alias="functionName")
     arguments: List[YulExpression]
+    node_type: typing.Literal[YulNodeType.YUL_FUNCTION_CALL] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0, new_line=False):
         return (
@@ -105,6 +113,9 @@ class YulFunctionCall(YulBase):
 
 class YulExpressionStatement(YulBase):
     expression: YulExpression
+    node_type: typing.Literal[YulNodeType.YUL_EXPRESSION_STATEMENT] = Field(
+        alias="nodeType"
+    )
 
     def parse(self, spaces_count=0, new_line=False):
         return (
@@ -116,6 +127,9 @@ class YulExpressionStatement(YulBase):
 class YulVariableDeclaration(YulBase):
     variables: List[YulTypedName]
     value: Optional[YulExpression] = Field(default=None)
+    node_type: typing.Literal[YulNodeType.YUL_VARIABLE_DECLARATION] = Field(
+        alias="nodeType"
+    )
 
     def parse(self, spaces_count=0, new_line=False):
         value = f" := {self.value.parse( spaces_count)}" if self.value else ""
@@ -131,6 +145,9 @@ class YulFunctionDefinition(YulBase):
     parameters: List[YulTypedName] = Field(default=None)
     return_variables: List[YulTypedName] = Field(default=None)
     body: YulBlock
+    node_type: typing.Literal[YulNodeType.YUL_FUNCTION_DEFINITION] = Field(
+        alias="nodeType"
+    )
 
     def parse(self, spaces_count=0, new_line=False):
         parameters = ", ".join([param.parse() for param in self.parameters])
@@ -146,6 +163,7 @@ class YulFunctionDefinition(YulBase):
 class YulIf(YulBase):
     condition: YulExpression
     body: YulBlock
+    node_type: typing.Literal[YulNodeType.YUL_IF] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0, new_line=False):
         return (
@@ -157,6 +175,7 @@ class YulIf(YulBase):
 class YulCase(YulBase):
     value: str
     body: YulBlock
+    node_type: typing.Literal[YulNodeType.YUL_CASE] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0, new_line=False):
         return (
@@ -168,6 +187,7 @@ class YulCase(YulBase):
 class YulSwitch(YulBase):
     expression: YulExpression
     cases: List[YulCase]
+    node_type: typing.Literal[YulNodeType.YUL_SWITCH] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0, new_line=False):
         cases = "\n".join([case.parse(spaces_count) for case in self.cases])
@@ -182,6 +202,7 @@ class YulForLoop(YulBase):
     condition: YulExpression
     post: YulBlock
     body: YulBlock
+    node_type: typing.Literal[YulNodeType.YUL_FOR_LOOP] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0, new_line=False):
         pre_arr = []
@@ -197,15 +218,21 @@ class YulForLoop(YulBase):
 
 
 class YulBreak(YulBase):
+    node_type: typing.Literal[YulNodeType.YUL_BREAK] = Field(alias="nodeType")
+
     def parse(self, spaces_count=0, new_line=False):
         return super().parse(spaces_count, new_line) + f"{' ' * spaces_count}break"
 
 
 class YulContinue(YulBase):
+    node_type: typing.Literal[YulNodeType.YUL_CONTINUE] = Field(alias="nodeType")
+
     def parse(self, spaces_count=0, new_line=False):
         return super().parse(spaces_count, new_line) + f"{' ' * spaces_count}continue"
 
 
 class YulLeave(YulBase):
+    node_type: typing.Literal[YulNodeType.YUL_LEAVE] = Field(alias="nodeType")
+
     def parse(self, spaces_count=0, new_line=False):
         return super().parse(spaces_count, new_line) + f"{' ' * spaces_count}leave"

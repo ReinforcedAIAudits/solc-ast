@@ -46,6 +46,7 @@ class NodeType(enum.StrEnum):
     TRY_CATCH_CLAUSE = "TryCatchClause"
     TRY_STATEMENT = "TryStatement"
     FOR_STATEMENT = "ForStatement"
+    WHILE_STATEMENT = "WhileStatement"
     CONTINUE = "Continue"
     BREAK = "Break"
     THROW = "Throw"

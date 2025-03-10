@@ -93,6 +93,7 @@ TypeName = Union[
     "ArrayTypeName",
 ]
 
+
 def build_function_header(node: ASTNode, spaces_count=0):
     name = f" {node.name}" if node.name else ""
     visibility = f" {node.visibility}"
@@ -128,6 +129,7 @@ class SourceUnit(NodeBase):
         default=None, alias="exportedSymbols"
     )
     absolute_path: Optional[str] = Field(default=None, alias="absolutePath")
+    node_type: typing.Literal[NodeType.SOURCE_UNIT] = Field(alias="nodeType")
 
     def parse(self, spaces_count: int = 0):
         result = super().parse(spaces_count)
@@ -139,6 +141,7 @@ class SourceUnit(NodeBase):
 
 class PragmaDirective(NodeBase):
     literals: List[str]
+    node_type: typing.Literal[NodeType.PRAGMA_DIRECTIVE] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         result = super().parse(spaces_count)
@@ -158,6 +161,8 @@ class ImportDirective(NodeBase):
     symbol_aliases: Optional[Dict] = Field(
         default=None, alias="symbolAliases"
     )  # TODO Check this type
+
+    node_type: typing.Literal[NodeType.IMPORT_DIRECTIVE] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -187,6 +192,8 @@ class ContractDefinition(NodeBase):
         default=None, alias="internalFunctionIDs"
     )  # TODO: Check this type
 
+    node_type: typing.Literal[NodeType.CONTRACT_DEFINITION] = Field(alias="nodeType")
+
     def parse(self, spaces_count=0):
         base_contracts = ""
         if len(self.base_contracts):
@@ -214,6 +221,8 @@ class IdentifierPath(NodeBase):
         default=None, alias="referencedDeclaration"
     )
 
+    node_type: typing.Literal[NodeType.IDENTIFIER_PATH] = Field(alias="nodeType")
+
     def parse(self, spaces_count=0):
         return super().parse(spaces_count) + f"{' ' * spaces_count}{self.name}"
 
@@ -221,6 +230,8 @@ class IdentifierPath(NodeBase):
 class InheritanceSpecifier(NodeBase):
     base_name: Union[IdentifierPath] = Field(alias="baseName")
     arguments: List[Expression] = Field(default_factory=list)
+
+    node_type: typing.Literal[NodeType.INHERITANCE_SPECIFIER] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         result = super().parse(spaces_count) + self.base_name.parse()
@@ -235,6 +246,8 @@ class FunctionNode(BaseModel, Node):
     definition: Optional[IdentifierPath] = Field(default=None)
     operator: Optional[str] = Field(default=None)
 
+    node_type: typing.Literal[NodeType.FUNCTION_NODE] = Field(alias="nodeType")
+
     def parse(self, spaces_count=0):
         return self.function.parse() if self.function else self.operator or ""
 
@@ -246,6 +259,8 @@ class UsingForDirective(NodeBase):
     function_list: Optional[List[FunctionNode]] = Field(
         default=None, alias="functionList"
     )
+
+    node_type: typing.Literal[NodeType.USING_FOR_DIRECTIVE] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         result = super().parse(spaces_count) + f"{' ' * spaces_count}using "
@@ -279,6 +294,8 @@ class StructDefinition(NodeBase):
     scope: Optional[int] = Field(default=None)
     canonical_name: Optional[str] = Field(default=None, alias="canonicalName")
 
+    node_type: typing.Literal[NodeType.STRUCT_DEFINITION] = Field(alias="nodeType")
+
     def parse(self, spaces_count=0):
         code = (
             super().parse(spaces_count) + f"{' ' * spaces_count}struct {self.name} {{\n"
@@ -299,6 +316,8 @@ class EnumDefinition(NodeBase):
     members: List["EnumValue"]
     canonical_name: Optional[str] = Field(default=None, alias="canonicalName")
 
+    node_type: typing.Literal[NodeType.ENUM_DEFINITION] = Field(alias="nodeType")
+
     def parse(self, spaces_count=0):
         result = (
             super().parse(spaces_count) + f"{' ' * spaces_count}enum {self.name} {{\n"
@@ -315,6 +334,8 @@ class EnumValue(NodeBase):
     name: str
     name_location: str = Field(alias="nameLocation")
 
+    node_type: typing.Literal[NodeType.ENUM_VALUE] = Field(alias="nodeType")
+
     def parse(self, spaces_count=0):
         return super().parse(spaces_count) + f"{' ' * spaces_count}{self.name}"
 
@@ -325,6 +346,10 @@ class UserDefinedValueTypeDefinition(NodeBase):
     underlying_type: TypeName = Field(alias="underlyingType")
     canonical_name: Optional[str] = Field(default=None, alias="canonicalName")
 
+    node_type: typing.Literal[NodeType.USER_DEFINED_VALUE_TYPE_DEFINITION] = Field(
+        alias="nodeType"
+    )
+
     def parse(self, spaces_count=0):
         return (
             super().parse(spaces_count)
@@ -334,6 +359,8 @@ class UserDefinedValueTypeDefinition(NodeBase):
 
 class ParameterList(NodeBase):
     parameters: List["VariableDeclaration"] = Field(default_factory=list)
+
+    node_type: typing.Literal[NodeType.PARAMETER_LIST] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         parsed = []
@@ -353,6 +380,8 @@ class ParameterList(NodeBase):
 
 class OverrideSpecifier(NodeBase):
     overrides: List[IdentifierPath]
+
+    node_type: typing.Literal[NodeType.OVERRIDE_SPECIFIER] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         if self.overrides:
@@ -377,6 +406,8 @@ class FunctionDefinition(NodeBase):
     visibility: Optional[str] = Field(default=None)
     function_selector: Optional[str] = Field(default=None, alias="functionSelector")
     base_functions: Optional[List[int]] = Field(default=None, alias="baseFunctions")
+
+    node_type: typing.Literal[NodeType.FUNCTION_DEFINITION] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         result = super().parse(spaces_count) + build_function_header(self, spaces_count)
@@ -409,6 +440,8 @@ class VariableDeclaration(TypeBase):
         default=None, alias="baseFunctions"
     )  # TODO: Check this type
 
+    node_type: typing.Literal[NodeType.VARIABLE_DECLARATION] = Field(alias="nodeType")
+
     def parse(self, spaces_count=0):
         storage_location = (
             f" {self.storage_location}" if self.storage_location != "default" else ""
@@ -436,6 +469,8 @@ class ModifierDefinition(NodeBase):
         default=None, alias="baseModifiers"
     )  # TODO: Check this type
 
+    node_type: typing.Literal[NodeType.MODIFIER_DEFINITION] = Field(alias="nodeType")
+
     def parse(self, spaces_count=0):
         result = (
             super().parse(spaces_count)
@@ -452,6 +487,7 @@ class ModifierInvocation(NodeBase):
     modifier_name: IdentifierPath = Field(alias="modifierName")
     arguments: List[Expression] = Field(default_factory=list)
     kind: Optional[str] = Field(default=None)
+    node_type: typing.Literal[NodeType.MODIFIER_INVOCATION] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         arguments = (
@@ -469,6 +505,7 @@ class EventDefinition(NodeBase):
     parameters: ParameterList
     anonymous: bool
     event_selector: Optional[str] = Field(default=None, alias="eventSelector")
+    node_type: typing.Literal[NodeType.EVENT_DEFINITION] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -483,6 +520,7 @@ class ErrorDefinition(NodeBase):
     documentation: Optional["StructuredDocumentation"] = Field(default=None)
     parameters: ParameterList
     error_selector: Optional[str] = Field(default=None, alias="errorSelector")
+    node_type: typing.Literal[NodeType.ERROR_DEFINITION] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -494,6 +532,7 @@ class ErrorDefinition(NodeBase):
 class ElementaryTypeName(TypeBase):
     name: str
     state_mutability: Optional[str] = Field(default=None, alias="stateMutability")
+    node_type: typing.Literal[NodeType.ELEMENTARY_TYPE_NAME] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         if self.name == "address" and self.state_mutability == "payable":
@@ -509,6 +548,7 @@ class UserDefinedTypeName(TypeBase):
     referenced_declaration: Optional[int] = Field(
         default=None, alias="referencedDeclaration"
     )
+    node_type: typing.Literal[NodeType.USER_DEFINED_TYPE_NAME] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -521,6 +561,7 @@ class FunctionTypeName(TypeBase):
     state_mutability: str = Field(alias="stateMutability")
     parameter_types: List[ParameterList] = Field(alias="parameterTypes")
     return_parameter_types: List[ParameterList] = Field(alias="returnParameterTypes")
+    node_type: typing.Literal[NodeType.FUNCTION_TYPE_NAME] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return super().parse(spaces_count) + f"{build_function_header(self)};\n"
@@ -533,6 +574,7 @@ class Mapping(TypeBase):
     value_type: TypeName = Field(alias="valueType")
     value_name: str = Field(alias="valueName")
     value_name_location: str = Field(alias="valueNameLocation")
+    node_type: typing.Literal[NodeType.MAPPING] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         key_type = self.key_type.parse()
@@ -546,6 +588,7 @@ class Mapping(TypeBase):
 class ArrayTypeName(TypeBase):
     base_type: TypeName = Field(alias="baseType")
     length: Optional[Expression] = Field(default=None)
+    node_type: typing.Literal[NodeType.ARRAY_TYPE_NAME] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -562,6 +605,7 @@ class InlineAssembly(NodeBase):
     evm_version: Optional[str] = Field(default=None, alias="evmVersion")
     eof_version: Optional[int] = Field(default=None, alias="eofVersion")
     flags: Optional[List[str]] = Field(default=None)
+    node_type: typing.Literal[NodeType.INLINE_ASSEMBLY] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -572,6 +616,7 @@ class InlineAssembly(NodeBase):
 
 class Block(NodeBase):
     statements: List[Statement]
+    node_type: typing.Literal[NodeType.BLOCK] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         result = super().parse(spaces_count)
@@ -594,6 +639,7 @@ class Block(NodeBase):
 
 
 class PlaceholderStatement(NodeBase):
+    node_type: typing.Literal[NodeType.PLACEHOLDER_STATEMENT] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return super().parse(spaces_count) + f"{' ' * spaces_count}_;\n"
@@ -603,6 +649,7 @@ class IfStatement(NodeBase):
     condition: Expression
     true_body: Statement = Field(alias="trueBody")
     false_body: Optional[Statement] = Field(default=None, alias="falseBody")
+    node_type: typing.Literal[NodeType.IF_STATEMENT] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         result = (
@@ -627,6 +674,7 @@ class TryCatchClause(NodeBase):
     error_name: str = Field(alias="errorName")
     parameters: Optional[ParameterList] = Field(default=None)
     block: Block
+    node_type: typing.Literal[NodeType.TRY_CATCH_CLAUSE] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         result = super().parse(spaces_count) + f"{' ' * spaces_count}catch "
@@ -643,6 +691,7 @@ class TryCatchClause(NodeBase):
 class TryStatement(NodeBase):
     external_call: Optional[Expression] = Field(default=None, alias="externalCall")
     clauses: List[TryCatchClause]
+    node_type: typing.Literal[NodeType.TRY_STATEMENT] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         result = super().parse(spaces_count) + f"{' ' * spaces_count}try "
@@ -660,6 +709,7 @@ class TryStatement(NodeBase):
 class WhileStatement(NodeBase):  # DoWhileStatement
     condition: Expression
     body: Statement
+    node_type: typing.Literal[NodeType.WHILE_STATEMENT] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         result = (
@@ -685,6 +735,7 @@ class ForStatement(NodeBase):
     is_simple_counter_loop: Optional[bool] = Field(
         default=None, alias="isSimpleCounterLoop"
     )
+    node_type: typing.Literal[NodeType.FOR_STATEMENT] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         result = super().parse(spaces_count) + f"{' ' * spaces_count}for ("
@@ -703,11 +754,15 @@ class ForStatement(NodeBase):
 
 
 class Continue(NodeBase):
+    node_type: typing.Literal[NodeType.CONTINUE] = Field(alias="nodeType")
+
     def parse(self, spaces_count=0):
         return super().parse(spaces_count) + f"{' ' * spaces_count}continue"
 
 
 class Break(NodeBase):
+    node_type: typing.Literal[NodeType.BREAK] = Field(alias="nodeType")
+
     def parse(self, spaces_count=0):
         return super().parse(spaces_count) + f"{' ' * spaces_count}break"
 
@@ -733,12 +788,15 @@ class Return(NodeBase):
 
 
 class Throw(NodeBase):
+    node_type: typing.Literal[NodeType.THROW] = Field(alias="nodeType")
+
     def parse(self, spaces_count=0):
         return super().parse(spaces_count) + f"{' ' * spaces_count}throw;\n"
 
 
 class EmitStatement(NodeBase):
     event_call: "FunctionCall" = Field(alias="eventCall")
+    node_type: typing.Literal[NodeType.EMIT_STATEMENT] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -749,6 +807,7 @@ class EmitStatement(NodeBase):
 
 class RevertStatement(NodeBase):
     error_call: Optional["FunctionCall"] = Field(default=None, alias="errorCall")
+    node_type: typing.Literal[NodeType.REVERT_STATEMENT] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -761,6 +820,9 @@ class VariableDeclarationStatement(NodeBase):
     assignments: List[Union[int, None]] = Field(default_factory=list)
     declarations: List[Union[VariableDeclaration, None]]
     initial_value: Optional[Expression] = Field(default=None, alias="initialValue")
+    node_type: typing.Literal[NodeType.VARIABLE_DECLARATION_STATEMENT] = Field(
+        alias="nodeType"
+    )
 
     def parse(self, spaces_count=0):
         declarations = []
@@ -780,6 +842,7 @@ class VariableDeclarationStatement(NodeBase):
 
 class ExpressionStatement(NodeBase):
     expression: Expression
+    node_type: typing.Literal[NodeType.EXPRESSION_STATEMENT] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -792,6 +855,7 @@ class Conditional(ExpressionBase):  # TODO maybe errors
     condition: Expression
     true_expression: Expression = Field(alias="trueExpression")
     false_expression: Expression = Field(alias="falseExpression")
+    node_type: typing.Literal[NodeType.CONDITIONAL] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -804,6 +868,7 @@ class Assignment(ExpressionBase):
     operator: str
     left_hand_side: Expression = Field(default=None, alias="leftHandSide")
     right_hand_side: Expression = Field(default=None, alias="rightHandSide")
+    node_type: typing.Literal[NodeType.ASSIGNMENT] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -815,6 +880,7 @@ class Assignment(ExpressionBase):
 class TupleExpression(ExpressionBase):
     is_inline_array: bool = Field(alias="isInlineArray")
     components: List[Expression]
+    node_type: typing.Literal[NodeType.TUPLE_EXPRESSION] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         res_tuple = [component.parse() for component in self.components]
@@ -830,6 +896,7 @@ class UnaryOperation(ExpressionBase):
     operator: str
     sub_expression: Expression = Field(alias="subExpression")
     function: Optional[int] = Field(default=None)
+    node_type: typing.Literal[NodeType.UNARY_OPERATION] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         if self.prefix:
@@ -850,6 +917,7 @@ class BinaryOperation(ExpressionBase):
     right_expression: Expression = Field(alias="rightExpression")
     common_type: TypeDescriptions = Field(alias="commonType")
     function: Optional[int] = Field(default=None)
+    node_type: typing.Literal[NodeType.BINARY_OPERATION] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -865,6 +933,7 @@ class FunctionCall(ExpressionBase):
     arguments: List[Expression]
     try_call: bool = Field(alias="tryCall")
     kind: Optional[str] = Field(default=None)
+    node_type: typing.Literal[NodeType.FUNCTION_CALL] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         arguments = [arg.parse() for arg in self.arguments]
@@ -883,6 +952,7 @@ class FunctionCallOptions(ExpressionBase):
     expression: Expression
     names: List[str]
     options: List[Expression]
+    node_type: typing.Literal[NodeType.FUNCTION_CALL_OPTIONS] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         options = [
@@ -913,6 +983,7 @@ class MemberAccess(ExpressionBase):
     referenced_declaration: Optional[int] = Field(
         default=None, alias="referencedDeclaration"
     )
+    node_type: typing.Literal[NodeType.MEMBER_ACCESS] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -926,6 +997,7 @@ class IndexAccess(ExpressionBase):
     index_expression: Optional[Expression] = Field(
         default=None, alias="indexExpression"
     )
+    node_type: typing.Literal[NodeType.INDEX_ACCESS] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -941,6 +1013,7 @@ class IndexRangeAccess(ExpressionBase):
         default=None, alias="startExpression"
     )
     end_expression: Optional[Expression] = Field(default=None, alias="endExpression")
+    node_type: typing.Literal[NodeType.INDEX_RANGE_ACCESS] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return (
@@ -958,6 +1031,7 @@ class Identifier(TypeBase):
     overloaded_declarations: Optional[List[int]] = Field(
         default=None, alias="overloadedDeclarations"
     )
+    node_type: typing.Literal[NodeType.IDENTIFIER] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         return super().parse(spaces_count) + f"{' ' * spaces_count}{self.name}"
@@ -965,6 +1039,9 @@ class Identifier(TypeBase):
 
 class ElementaryTypeNameExpression(ExpressionBase):
     type_name: ElementaryTypeName = Field(alias="typeName")
+    node_type: typing.Literal[NodeType.ELEMENTARY_TYPE_NAME_EXPRESSION] = Field(
+        alias="nodeType"
+    )
 
     def parse(self, spaces_count=0):
         return (
@@ -978,6 +1055,7 @@ class Literal(ExpressionBase):
     value: str
     hex_value: str = Field(alias="hexValue")
     subdenomination: Optional[str] = Field(default=None)
+    node_type: typing.Literal[NodeType.LITERAL] = Field(alias="nodeType")
 
     def parse(self, spaces_count=0):
         subdenomination = f" {self.subdenomination}" if self.subdenomination else ""
