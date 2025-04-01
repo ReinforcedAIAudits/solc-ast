@@ -146,7 +146,6 @@ class PragmaDirective(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         result = super().to_solidity(spaces_count)
-        print(spaces_count)
         return (
             result
             + f"{' ' * spaces_count}pragma {self.literals[0]} {''.join(self.literals[1:])};\n\n"

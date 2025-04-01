@@ -208,7 +208,6 @@ def restore_storages(ast: SourceUnit) -> SourceUnit:
                     )
                 )
 
-        print(list(members))
         struct_decl = create_struct_declaration(
             struct_name=struct_name,
             struct_members=struct_members,
@@ -490,7 +489,6 @@ def extract_expression_name(node: ast_models.Expression) -> str:
         case NodeType.LITERAL:
             return node.value
         case _:
-            print(json.dumps(node.model_dump(), indent=4))
             raise ValueError(f"Unsupported node type: {node.node_type}")
 
 
@@ -527,6 +525,23 @@ def restore_function_definitions(
         "require",
         "revert",
         "assert",
+        "address",
+        "uint256",
+        "int256",
+        "bool",
+        "string",
+        "bytes",
+        "bytes32",
+        "uint8",
+        "uint16",
+        "uint32",
+        "uint64",
+        "uint128",
+        "int8",
+        "int16",
+        "int32",
+        "int64",
+        "int128",
     ]
     restored_functions = []
     for function_call in function_calls:

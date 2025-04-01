@@ -21,7 +21,7 @@ def compile_contract_from_source(source: str):
 def compile_contract_with_standart_input(
     source: str, contract_file_name: str = "example.sol"
 ):
-    suggested_version = solcx.install.select_pragma_version(
+    suggested_version = solcx.install_solc_pragma(
         source, solcx.get_installable_solc_versions()
     )
     json_compiled = solcx.compile_standard(
