@@ -30,7 +30,7 @@ requirements = read_requirements("requirements.txt")
 
 setuptools.setup(
     name="solc-ast-parser",
-    version="1.3.3",
+    version="1.3.4",
     author="ReinforcedAI",
     author_email="info@reinforced.app",
     description="Solidity smart-contract parser to AST and back to source code",

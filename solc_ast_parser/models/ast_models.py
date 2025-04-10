@@ -7,6 +7,8 @@ from pydantic import BaseModel, Field
 from solc_ast_parser.models.yul_models import YulBlock
 from .base_ast_models import (
     ExpressionBase,
+    Comment,
+    MultilineComment,
     Node,
     NodeBase,
     NodeType,
