@@ -30,16 +30,21 @@ class YulBlock(YulBase):
     node_type: typing.Literal[YulNodeType.YUL_BLOCK] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0, new_line: bool = False):
-        if len(self.statements) == 1 and not new_line:
-            return f"{{ {self.statements[0].to_solidity()} }}\n"
+        if (
+            len(self.statements) == 1
+            and not new_line
+            and self.statements[0].node_type
+            not in [YulNodeType.YUL_BLOCK, YulNodeType.YUL_SWITCH]
+        ):
+            return f"{{ {self.statements[0].to_solidity()} }}"
 
         if not self.statements:
-            return "{ }\n"
+            return "{ }"
 
         statements = "\n".join(
             [statement.to_solidity(spaces_count + 4) for statement in self.statements]
         )
-        return f"{{\n{statements}\n{' ' * spaces_count}}}\n"
+        return f"{{\n{statements}\n{' ' * spaces_count}}}"
 
 
 class YulTypedName(YulBase):
@@ -110,7 +115,7 @@ class YulFunctionCall(YulBase):
     def to_solidity(self, spaces_count=0, new_line=False):
         return (
             super().to_solidity(spaces_count, new_line)
-            + f"{' ' * spaces_count}{self.function_name.to_solidity(spaces_count)}"
+            + f"{self.function_name.to_solidity()}"
             + f"({', '.join([arg.to_solidity() for arg in self.arguments])})"
         )
 
@@ -136,8 +141,8 @@ class YulVariableDeclaration(YulBase):
     )
 
     def to_solidity(self, spaces_count=0, new_line=False):
-        value = f" := {self.value.to_solidity( spaces_count)}" if self.value else ""
-        variables = ",".join([var.to_solidity(spaces_count) for var in self.variables])
+        value = f" := {self.value.to_solidity()}" if self.value else ""
+        variables = ",".join([var.to_solidity() for var in self.variables])
         return (
             super().to_solidity(spaces_count, new_line)
             + f"{' ' * spaces_count}{variables}{value}"
@@ -177,14 +182,14 @@ class YulIf(YulBase):
 
 
 class YulCase(YulBase):
-    value: str
+    value: YulExpression | str
     body: YulBlock
     node_type: typing.Literal[YulNodeType.YUL_CASE] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0, new_line=False):
         return (
             super().to_solidity(spaces_count, new_line)
-            + f"{' ' * spaces_count}case {self.value} {self.body.to_solidity( spaces_count=0, new_line=True)}"
+            + f"{' ' * spaces_count}{f'case {self.value.to_solidity() if type(self.value) != str else self.value}' if self.value != 'default' else 'default'} {self.body.to_solidity(spaces_count, new_line=True)}"
         )
 
 
@@ -197,7 +202,7 @@ class YulSwitch(YulBase):
         cases = "\n".join([case.to_solidity(spaces_count) for case in self.cases])
         return (
             super().to_solidity(spaces_count, new_line)
-            + f"{' ' * spaces_count}switch {self.expression.to_solidity()} {cases}"
+            + f"{' ' * spaces_count}switch {self.expression.to_solidity()}\n{cases}"
         )
 
 
@@ -217,7 +222,7 @@ class YulForLoop(YulBase):
                 pre_arr.append(statement.to_solidity())
         return (
             super().to_solidity(spaces_count, new_line)
-            + f"{' ' * spaces_count}for {{ {', '.join(pre_arr)} }} {self.condition.to_solidity()} {self.post.to_solidity()} {self.body.to_solidity( spaces_count, True)}"
+            + f"{' ' * spaces_count}for {{ {', '.join(pre_arr)} }} {self.condition.to_solidity()} {self.post.to_solidity()} {self.body.to_solidity(spaces_count, True)}"
         )
 
 

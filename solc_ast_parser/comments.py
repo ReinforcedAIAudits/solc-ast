@@ -3,7 +3,7 @@ import re
 from typing import List, Optional, Union
 from solc_ast_parser.models import ast_models
 from solc_ast_parser.models.ast_models import SourceUnit
-from solc_ast_parser.models.base_ast_models import Comment, MultilineComment, NodeType
+from solc_ast_parser.models.base_ast_models import Comment, MultilineComment, NodeType, YulNodeType
 from solc_ast_parser.utils import replace_node, traverse_ast
 
 
@@ -96,7 +96,7 @@ def insert_nodes_into_ast(ast: SourceUnit, nodes: List[Comment]) -> SourceUnit:
                     current_node.src.split(":")[1]
                 )
             distance = start - int(node.src.split(":")[0])
-            if 0 <= distance < min_distance:
+            if 0 <= distance < min_distance and current_node.node_type not in [item.value for item in YulNodeType]:
                 min_distance = distance
                 closest_node = current_node
                 parent_node = parent

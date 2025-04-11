@@ -43,6 +43,7 @@ Statement = Union[
     "IfStatement",
     "TryStatement",
     "ForStatement",
+    "WhileStatement",
     "Continue",
     "Break",
     "Return",
@@ -148,8 +149,8 @@ class PragmaDirective(NodeBase):
     def to_solidity(self, spaces_count=0):
         result = super().to_solidity(spaces_count)
         return (
-                result
-                + f"{' ' * spaces_count}pragma {self.literals[0]} {''.join(self.literals[1:])};\n\n"
+            result
+            + f"{' ' * spaces_count}pragma {self.literals[0]} {''.join(self.literals[1:])};\n\n"
         )
 
 
@@ -159,16 +160,17 @@ class ImportDirective(NodeBase):
     scope: Optional[int] = Field(default=None)
     absolute_path: Optional[str] = Field(default=None, alias="absolutePath")
     unit_alias: Optional[str] = Field(default=None, alias="unitAlias")
-    symbol_aliases: Optional[Dict] = Field(
+    symbol_aliases: dict | list | None = Field(
         default=None, alias="symbolAliases"
     )  # TODO Check this type
+    name_locaton: str | None = Field(default=None, alias="nameLocation")
 
     node_type: typing.Literal[NodeType.IMPORT_DIRECTIVE] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}import {self.absolute_path};"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}import \"{self.absolute_path}\";\n"
         )
 
 
@@ -201,8 +203,8 @@ class ContractDefinition(NodeBase):
             base_contracts = [base.to_solidity() for base in self.base_contracts]
             base_contracts = f" is {', '.join(base_contracts)}"
         code = (
-                super().to_solidity(spaces_count)
-                + f"{self.contract_kind} {self.name}{base_contracts} {{{f' // {self.comment.text}' if self.comment else ''}\n"
+            super().to_solidity(spaces_count)
+            + f"{self.contract_kind} {self.name}{base_contracts} {{{f' // {self.comment.text}' if self.comment else ''}\n"
         )
         spaces_count = 4
         for contract_node in self.nodes:
@@ -299,8 +301,8 @@ class StructDefinition(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         code = (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}struct {self.name} {{\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}struct {self.name} {{\n"
         )
         spaces_count += 4
         for member in self.members:
@@ -324,8 +326,8 @@ class EnumDefinition(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         result = (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}enum {self.name} {{\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}enum {self.name} {{\n"
         )
         spaces_count += 4
         members = [f"{' ' * spaces_count}{member.name}" for member in self.members]
@@ -357,8 +359,8 @@ class UserDefinedValueTypeDefinition(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}struct {self.name} {{\n{' ' * spaces_count}}}\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}struct {self.name} {{\n{' ' * spaces_count}}}\n"
         )
 
 
@@ -458,8 +460,8 @@ class VariableDeclaration(TypeBase):
         if self.value:
             value = f" = {self.value.to_solidity()}"
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}{self.type_name.to_solidity()}{visibility}{storage_location} {self.name}{value}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.type_name.to_solidity()}{visibility}{storage_location} {self.name}{value}"
         )
 
 
@@ -480,8 +482,8 @@ class ModifierDefinition(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         result = (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}modifier {self.name}({self.parameters.to_solidity()}) {{\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}modifier {self.name}({self.parameters.to_solidity()}) {{\n"
         )
         spaces_count += 4
         result += self.body.to_solidity(spaces_count)
@@ -516,8 +518,8 @@ class EventDefinition(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}event {self.name}({self.parameters.to_solidity()});\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}event {self.name}({self.parameters.to_solidity()});\n"
         )
 
 
@@ -531,8 +533,8 @@ class ErrorDefinition(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}error {self.name}({self.parameters.to_solidity()});\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}error {self.name}({self.parameters.to_solidity()});\n"
         )
 
 
@@ -544,8 +546,8 @@ class ElementaryTypeName(TypeBase):
     def to_solidity(self, spaces_count=0):
         if self.name == "address" and self.state_mutability == "payable":
             return (
-                    super().to_solidity(spaces_count)
-                    + f"{' ' * spaces_count}{self.state_mutability}"
+                super().to_solidity(spaces_count)
+                + f"{' ' * spaces_count}{self.state_mutability}"
             )
         return super().to_solidity(spaces_count) + f"{' ' * spaces_count}{self.name}"
 
@@ -559,8 +561,8 @@ class UserDefinedTypeName(TypeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}{self.path_node.name}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.path_node.name}"
         )
 
 
@@ -588,8 +590,8 @@ class Mapping(TypeBase):
         key_type = self.key_type.to_solidity()
         value_type = self.value_type.to_solidity()
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}mapping({key_type} => {value_type})"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}mapping({key_type} => {value_type})"
         )
 
 
@@ -600,8 +602,8 @@ class ArrayTypeName(TypeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}{self.base_type.to_solidity()}[{self.length or ''}]"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.base_type.to_solidity()}[{self.length or ''}]"
         )
 
 
@@ -617,8 +619,8 @@ class InlineAssembly(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}assembly {self.AST.to_solidity(spaces_count)}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}assembly {self.AST.to_solidity(spaces_count)}"
         )
 
 
@@ -632,15 +634,15 @@ class Block(NodeBase):
         result = super().to_solidity(spaces_count)
         for statement in self.statements:
             if not statement.node_type in (
-                    NodeType.COMMENT,
-                    NodeType.MULTILINE_COMMENT,
+                NodeType.COMMENT,
+                NodeType.MULTILINE_COMMENT,
             ):
                 st = statement.to_solidity(spaces_count)
                 if (
-                        statement.node_type != NodeType.INLINE_ASSEMBLY
-                        and not st.endswith(";\n")
-                        and not st.endswith("}\n")
-                        and not re.search(r"\/\/ .+", st)
+                    statement.node_type != NodeType.INLINE_ASSEMBLY
+                    and not st.endswith(";\n")
+                    and not st.endswith("}\n")
+                    and not re.search(r"\/\/ .+", st)
                 ):
                     st += f";{f' // {statement.comment.text}' if statement.comment else ''}\n"
                 result += st
@@ -665,8 +667,8 @@ class IfStatement(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         result = (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}if ({self.condition.to_solidity()}) {{\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}if ({self.condition.to_solidity()}) {{\n"
         )
         spaces_count += 4
         result += self.true_body.to_solidity(spaces_count)
@@ -725,11 +727,11 @@ class WhileStatement(NodeBase):  # DoWhileStatement
 
     def to_solidity(self, spaces_count=0):
         result = (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}while ({self.condition.to_solidity()}) {{\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}while ({self.condition.to_solidity()}) {{\n"
         )
         spaces_count += 4
-        result += self.body(spaces_count)
+        result += self.body.to_solidity(spaces_count)
         spaces_count -= 4
         result += f"{' ' * spaces_count}}}\n"
         return result
@@ -789,8 +791,8 @@ class Return(NodeBase):
     def to_solidity(self, spaces_count=0):
         if self.expression:
             return (
-                    super().to_solidity(spaces_count)
-                    + f"{' ' * spaces_count}return {self.expression.to_solidity()};\n"
+                super().to_solidity(spaces_count)
+                + f"{' ' * spaces_count}return {self.expression.to_solidity()};\n"
             )
         else:
             return super().to_solidity(spaces_count) + f"{' ' * spaces_count}return"
@@ -809,8 +811,8 @@ class EmitStatement(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * (spaces_count)}emit {self.event_call.to_solidity()};\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * (spaces_count)}emit {self.event_call.to_solidity()};\n"
         )
 
 
@@ -820,8 +822,8 @@ class RevertStatement(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}revert({self.error_call.to_solidity()});\n"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}revert({self.error_call.to_solidity()});\n"
         )
 
 
@@ -850,7 +852,9 @@ class VariableDeclarationStatement(NodeBase):
         left = declarations_str
         right = f" = {self.initial_value.to_solidity()}" if self.initial_value else ""
         return (
-                super().to_solidity(spaces_count) + f"{' ' * (spaces_count)}{left}{right}" + comment
+            super().to_solidity(spaces_count)
+            + f"{' ' * (spaces_count)}{left}{right}"
+            + comment
         )
 
 
@@ -860,8 +864,8 @@ class ExpressionStatement(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * (spaces_count)}{self.expression.to_solidity()}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * (spaces_count)}{self.expression.to_solidity()}"
         )
 
 
@@ -873,8 +877,8 @@ class Conditional(ExpressionBase):  # TODO maybe errors
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}{self.condition.to_solidity()} ? {self.true_expression.to_solidity()} : {self.false_expression.to_solidity()}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.condition.to_solidity()} ? {self.true_expression.to_solidity()} : {self.false_expression.to_solidity()}"
         )
 
 
@@ -886,22 +890,25 @@ class Assignment(ExpressionBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}{self.left_hand_side.to_solidity()} {self.operator} {self.right_hand_side.to_solidity()}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.left_hand_side.to_solidity()} {self.operator} {self.right_hand_side.to_solidity()}"
         )
 
 
 class TupleExpression(ExpressionBase):
     is_inline_array: bool = Field(alias="isInlineArray")
-    components: List[Expression]
+    components: List[Expression | None]
     node_type: typing.Literal[NodeType.TUPLE_EXPRESSION] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        res_tuple = [component.to_solidity() for component in self.components]
+        res_tuple = [
+            component.to_solidity() if component else ""
+            for component in self.components
+        ]
 
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}({', '.join(res_tuple)})"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}({', '.join(res_tuple)})"
         )
 
 
@@ -915,13 +922,13 @@ class UnaryOperation(ExpressionBase):
     def to_solidity(self, spaces_count=0):
         if self.prefix:
             return (
-                    super().to_solidity(spaces_count)
-                    + f"{' ' * spaces_count}{self.operator}{self.sub_expression.to_solidity()}"
+                super().to_solidity(spaces_count)
+                + f"{' ' * spaces_count}{self.operator}{' ' if self.operator == 'delete' else ''}{self.sub_expression.to_solidity()}"
             )
         else:
             return (
-                    super().to_solidity(spaces_count)
-                    + f"{' ' * spaces_count}{self.sub_expression.to_solidity()}{self.operator}"
+                super().to_solidity(spaces_count)
+                + f"{' ' * spaces_count}{self.sub_expression.to_solidity()}{self.operator}"
             )
 
 
@@ -935,8 +942,8 @@ class BinaryOperation(ExpressionBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}{self.left_expression.to_solidity()} {self.operator} {self.right_expression.to_solidity()}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.left_expression.to_solidity()} {self.operator} {self.right_expression.to_solidity()}"
         )
 
 
@@ -957,8 +964,8 @@ class FunctionCall(ExpressionBase):
         else:
             arguments_str = ", ".join(arguments)
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}{self.expression.to_solidity()}({arguments_str})"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.expression.to_solidity()}({arguments_str})"
         )
 
 
@@ -974,8 +981,8 @@ class FunctionCallOptions(ExpressionBase):
             for name, option in zip(self.names, self.options)
         ]
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}{self.expression.to_solidity()}{{{' ,'.join(options)}}}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.expression.to_solidity()}{{{' ,'.join(options)}}}"
         )
 
 
@@ -985,8 +992,8 @@ class NewExpression(ExpressionBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}new {self.type_name.to_solidity()}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}new {self.type_name.to_solidity()}"
         )
 
 
@@ -1001,8 +1008,8 @@ class MemberAccess(ExpressionBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}{self.expression.to_solidity()}.{self.member_name}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.expression.to_solidity()}.{self.member_name}"
         )
 
 
@@ -1015,9 +1022,9 @@ class IndexAccess(ExpressionBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}{self.base_expression.to_solidity()}"
-                + f"[{self.index_expression.to_solidity() if self.index_expression else ''}]"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.base_expression.to_solidity()}"
+            + f"[{self.index_expression.to_solidity() if self.index_expression else ''}]"
         )
 
 
@@ -1031,9 +1038,9 @@ class IndexRangeAccess(ExpressionBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}{self.base_expression.to_solidity()}"
-                + f"[{self.start_expression.to_solidity()}:{self.end_expression.to_solidity()}]"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.base_expression.to_solidity()}"
+            + f"[{self.start_expression.to_solidity()}:{self.end_expression.to_solidity()}]"
         )
 
 
@@ -1059,8 +1066,8 @@ class ElementaryTypeNameExpression(ExpressionBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}{self.type_name.to_solidity()}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.type_name.to_solidity()}"
         )
 
 
@@ -1076,8 +1083,8 @@ class Literal(ExpressionBase):
         if self.kind == "string":
             return f"{' ' * spaces_count}{repr(self.value)}{subdenomination}"
         return (
-                super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}{self.value}{subdenomination}"
+            super().to_solidity(spaces_count)
+            + f"{' ' * spaces_count}{self.value}{subdenomination}"
         )
 
 
