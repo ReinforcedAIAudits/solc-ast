@@ -172,6 +172,34 @@ def replace_node_to_multiple(
 
     return False
 
+def remove_node(
+    ast_node: ast_models.ASTNode, target_id: int
+) -> bool:
+    if hasattr(ast_node, "id") and ast_node.id == target_id:
+        return False
+
+    stack = deque([(ast_node, None, None)])
+
+    while stack:
+        current_node, parent_field, list_index = stack.popleft()
+
+        for field_name, field_value in current_node.__dict__.items():
+            if isinstance(field_value, list):
+                for i, item in enumerate(field_value):
+                    if hasattr(item, "id") and item.id == target_id:
+                        del field_value[i]
+                        return True
+                    elif hasattr(item, "__dict__"):
+                        stack.append((item, field_name, i))
+
+            elif hasattr(field_value, "__dict__"):
+                if hasattr(field_value, "id") and field_value.id == target_id:
+                    setattr(current_node, field_name, None)
+                    return True
+                stack.append((field_value, field_name, None))
+
+    return False
+
 def create_standard_solidity_input(contract_content: str, contract_name: str) -> Dict:
     return {
         "language": "Solidity",
