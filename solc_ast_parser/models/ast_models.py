@@ -456,12 +456,13 @@ class VariableDeclaration(TypeBase):
             f" {self.storage_location}" if self.storage_location != "default" else ""
         )
         visibility = f" {self.visibility}" if self.visibility != "internal" else ""
+        constant = " constant" if self.constant else ""
         value = ""
         if self.value:
             value = f" = {self.value.to_solidity()}"
         return (
             super().to_solidity(spaces_count)
-            + f"{' ' * spaces_count}{self.type_name.to_solidity()}{visibility}{storage_location} {self.name}{value}"
+            + f"{' ' * spaces_count}{self.type_name.to_solidity()}{constant}{visibility}{storage_location} {self.name}{value}"
         )
 
 
@@ -603,7 +604,7 @@ class ArrayTypeName(TypeBase):
     def to_solidity(self, spaces_count=0):
         return (
             super().to_solidity(spaces_count)
-            + f"{' ' * spaces_count}{self.base_type.to_solidity()}[{self.length or ''}]"
+            + f"{' ' * spaces_count}{self.base_type.to_solidity()}[{self.length.to_solidity() if self.length else ''}]"
         )
 
 
