@@ -684,7 +684,7 @@ class IfStatement(NodeBase):
             result += self.false_body.to_solidity(spaces_count)
             spaces_count -= 4
         
-        if not result.endswith(";\n"):
+        if not result.endswith(";\n") and not result.endswith("}\n"):
             result += f";\n"
 
         result += f"{' ' * spaces_count}}}\n"
@@ -774,6 +774,8 @@ class ForStatement(NodeBase):
         result += f") {{\n"
         spaces_count += 4
         result += self.body.to_solidity(spaces_count)
+        if not result.endswith(";\n") and not result.endswith("}\n"):
+            result += f";\n"
         spaces_count -= 4
         result += f"{' ' * spaces_count}}}\n"
         return result
