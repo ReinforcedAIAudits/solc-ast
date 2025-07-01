@@ -306,9 +306,7 @@ class StructDefinition(NodeBase):
         )
         spaces_count += 4
         for member in self.members:
-            code += (
-                f"{' ' * spaces_count}{member.type_name.to_solidity()} {member.name};\n"
-            )
+            code += f"{' ' * spaces_count}{member.type_name.to_solidity(is_parameter=True) if member.type_name.node_type == NodeType.ELEMENTARY_TYPE_NAME else member.type_name.to_solidity()} {member.name};\n"
         spaces_count -= 4
 
         code += f"{' ' * spaces_count}}}\n"
@@ -683,7 +681,7 @@ class IfStatement(NodeBase):
             spaces_count += 4
             result += self.false_body.to_solidity(spaces_count)
             spaces_count -= 4
-        
+
         if not result.endswith(";\n") and not result.endswith("}\n"):
             result += f";\n"
 
@@ -719,13 +717,17 @@ class TryStatement(NodeBase):
         if self.external_call:
             result += self.external_call.to_solidity()
         if self.clauses:
-            result += f" returns ({self.clauses[0].parameters.to_solidity()})" if self.clauses[0].parameters else ""
+            result += (
+                f" returns ({self.clauses[0].parameters.to_solidity()})"
+                if self.clauses[0].parameters
+                else ""
+            )
             result += " {\n"
 
             result += self.clauses[0].block.to_solidity(spaces_count + 4)
 
             result += f"{' ' * spaces_count}}}"
-        
+
         for clause in self.clauses[1:]:
             result += clause.to_solidity(spaces_count)
 
@@ -837,7 +839,7 @@ class RevertStatement(NodeBase):
     def to_solidity(self, spaces_count=0):
         return (
             super().to_solidity(spaces_count)
-            + f"{' ' * spaces_count}revert({self.error_call.to_solidity()});\n"
+            + f"{' ' * spaces_count}revert {self.error_call.to_solidity()};\n"
         )
 
 
