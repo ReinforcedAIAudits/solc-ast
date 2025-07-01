@@ -377,7 +377,10 @@ class ParameterList(NodeBase):
                 if parameter.storage_location != "default"
                 else ""
             )
-            var_type = parameter.type_name.to_solidity()
+            if parameter.type_name.node_type == NodeType.ELEMENTARY_TYPE_NAME:
+                var_type = parameter.type_name.to_solidity(is_parameter=True)
+            else:
+                var_type = parameter.type_name.to_solidity()
             name = f" {parameter.name}" if parameter.name else ""
             if parameter.node_type == NodeType.VARIABLE_DECLARATION:
                 indexed = " indexed" if parameter.indexed else ""
@@ -462,7 +465,7 @@ class VariableDeclaration(TypeBase):
             value = f" = {self.value.to_solidity()}"
         return (
             super().to_solidity(spaces_count)
-            + f"{' ' * spaces_count}{self.type_name.to_solidity()}{constant}{visibility}{storage_location} {self.name}{value}"
+            + f"{' ' * spaces_count}{self.type_name.to_solidity()}{visibility}{constant}{storage_location} {self.name}{value}"
         )
 
 
@@ -544,11 +547,11 @@ class ElementaryTypeName(TypeBase):
     state_mutability: Optional[str] = Field(default=None, alias="stateMutability")
     node_type: typing.Literal[NodeType.ELEMENTARY_TYPE_NAME] = Field(alias="nodeType")
 
-    def to_solidity(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0, is_parameter=False):
         if self.name == "address" and self.state_mutability == "payable":
             return (
                 super().to_solidity(spaces_count)
-                + f"{' ' * spaces_count}{self.state_mutability}"
+                + f"{' ' * spaces_count}{f'{self.name} ' if is_parameter else ''}{self.state_mutability}"
             )
         return super().to_solidity(spaces_count) + f"{' ' * spaces_count}{self.name}"
 
@@ -712,12 +715,17 @@ class TryStatement(NodeBase):
         result = super().to_solidity(spaces_count) + f"{' ' * spaces_count}try "
         if self.external_call:
             result += self.external_call.to_solidity()
-        result += " {\n"
+        if self.clauses:
+            result += f" returns ({self.clauses[0].parameters.to_solidity()})" if self.clauses[0].parameters else ""
+            result += " {\n"
 
-        for clause in self.clauses:
+            result += self.clauses[0].block.to_solidity(spaces_count + 4)
+
+            result += f"{' ' * spaces_count}}}"
+        
+        for clause in self.clauses[1:]:
             result += clause.to_solidity(spaces_count)
 
-        result += f"{' ' * spaces_count}}}\n"
         return result
 
 
