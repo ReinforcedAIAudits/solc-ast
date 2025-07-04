@@ -258,7 +258,7 @@ class FunctionNode(BaseModel, Node):
 class UsingForDirective(NodeBase):
     type_name: Optional[TypeName] = Field(default=None, alias="typeName")
     library_name: Optional[IdentifierPath] = Field(default=None, alias="libraryName")
-    global_: bool = Field(alias="global")
+    global_: bool = Field(default=False, alias="global")
     function_list: Optional[List[FunctionNode]] = Field(
         default=None, alias="functionList"
     )

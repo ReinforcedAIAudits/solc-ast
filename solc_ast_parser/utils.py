@@ -3,6 +3,7 @@ import json
 import random
 import re
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+import typing
 import solcx
 
 from solc_ast_parser.models import ast_models
@@ -142,10 +143,11 @@ def replace_node(
 
     return False
 
+
 def replace_node_to_multiple(
     ast_node: ast_models.ASTNode,
     target_id: int,
-    replacement_nodes: List[ast_models.ASTNode]
+    replacement_nodes: List[ast_models.ASTNode],
 ) -> bool:
     if hasattr(ast_node, "id") and ast_node.id == target_id:
         return False
@@ -172,9 +174,8 @@ def replace_node_to_multiple(
 
     return False
 
-def remove_node(
-    ast_node: ast_models.ASTNode, target_id: int
-) -> bool:
+
+def remove_node(ast_node: ast_models.ASTNode, target_id: int) -> bool:
     if hasattr(ast_node, "id") and ast_node.id == target_id:
         return False
 
@@ -199,6 +200,7 @@ def remove_node(
                 stack.append((field_value, field_name, None))
 
     return False
+
 
 def create_standard_solidity_input(contract_content: str, contract_name: str) -> Dict:
     return {
@@ -242,3 +244,65 @@ def get_contract_nodes(
                         continue
                     nodes.append(contract_node)
     return nodes
+
+
+def insert_node(
+    ast_node: ast_models.ASTNode,
+    target_id: int,
+    new_node: ast_models.ASTNode,
+    position: typing.Literal["after", "before", "child_first", "child_last"] = "after",
+) -> bool:
+    if hasattr(ast_node, "id") and ast_node.id == target_id:
+        return False
+
+    stack = deque([(ast_node, None, None, None)])
+
+    while stack:
+        current_node, parent_node, field_name, list_index = stack.popleft()
+
+        for field_name, field_value in current_node.__dict__.items():
+            if isinstance(field_value, list):
+                for i, item in enumerate(field_value):
+                    if hasattr(item, "id") and item.id == target_id:
+                        if position == "before":
+                            field_value.insert(i, new_node)
+                        elif position == "after":
+                            field_value.insert(i + 1, new_node)
+                        elif position == "child_first":
+                            if hasattr(item, "nodes"):
+                                item.nodes.insert(0, new_node)
+                            elif hasattr(item, "statements"):
+                                item.statements.insert(0, new_node)
+                            else:
+                                return False
+                        elif position == "child_last":
+                            if hasattr(item, "nodes"):
+                                item.nodes.append(new_node)
+                            elif hasattr(item, "statements"):
+                                item.statements.append(new_node)
+                            else:
+                                return False
+                        return True
+                    elif hasattr(item, "__dict__"):
+                        stack.append((item, current_node, field_name, i))
+
+            elif hasattr(field_value, "__dict__"):
+                if hasattr(field_value, "id") and field_value.id == target_id:
+                    if position == "child_first":
+                        if hasattr(field_value, "nodes"):
+                            field_value.nodes.insert(0, new_node)
+                        elif hasattr(field_value, "statements"):
+                            field_value.statements.insert(0, new_node)
+                        else:
+                            return False
+                    elif position == "child_last":
+                        if hasattr(field_value, "nodes"):
+                            field_value.nodes.append(new_node)
+                        elif hasattr(field_value, "statements"):
+                            field_value.statements.append(new_node)
+                        else:
+                            return False
+                    return True
+                stack.append((field_value, current_node, field_name, None))
+
+    return False
