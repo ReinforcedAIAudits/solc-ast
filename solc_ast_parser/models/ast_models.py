@@ -921,10 +921,14 @@ class TupleExpression(ExpressionBase):
             component.to_solidity() if component else ""
             for component in self.components
         ]
+        if self.is_inline_array:
+            res_tuple = f"[{', '.join(res_tuple)}]"
+        else:
+            res_tuple = f"({', '.join(res_tuple)})"
 
         return (
             super().to_solidity(spaces_count)
-            + f"{' ' * spaces_count}({', '.join(res_tuple)})"
+            + f"{' ' * spaces_count}{res_tuple}"
         )
 
 
