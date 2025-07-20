@@ -4,6 +4,15 @@ from typing import List, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class QuotePreference(enum.StrEnum):
+    DOUBLE = "double"
+    SINGLE = "single"
+
+
+class SolidityConfig(BaseModel):
+    quote_preference: QuotePreference = QuotePreference.DOUBLE
+
+
 class NodeType(enum.StrEnum):
     SOURCE_UNIT = "SourceUnit"
     BLOCK = "Block"

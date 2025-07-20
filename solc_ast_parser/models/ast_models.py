@@ -14,6 +14,8 @@ from .base_ast_models import (
     NodeType,
     TypeBase,
     TypeDescriptions,
+    SolidityConfig,
+    QuotePreference,
 )
 
 ASTNode = Union[
@@ -134,11 +136,21 @@ class SourceUnit(NodeBase):
     absolute_path: Optional[str] = Field(default=None, alias="absolutePath")
     node_type: typing.Literal[NodeType.SOURCE_UNIT] = Field(alias="nodeType")
 
-    def to_solidity(self, spaces_count: int = 0):
+    def to_solidity(
+        self, spaces_count: int = 0, config: Optional[SolidityConfig] = None
+    ):
+        if config is None:
+            config = SolidityConfig()
         result = super().to_solidity(spaces_count)
         for node in self.nodes:
-            result += node.to_solidity(spaces_count)
-
+            if hasattr(node, "to_solidity"):
+                if "config" in node.to_solidity.__code__.co_varnames:
+                    result += node.to_solidity(spaces_count, config=config)
+                else:
+                    result += node.to_solidity(spaces_count)
+            else:
+                result += str(node)
+                
         return result
 
 
@@ -926,10 +938,7 @@ class TupleExpression(ExpressionBase):
         else:
             res_tuple = f"({', '.join(res_tuple)})"
 
-        return (
-            super().to_solidity(spaces_count)
-            + f"{' ' * spaces_count}{res_tuple}"
-        )
+        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}{res_tuple}"
 
 
 class UnaryOperation(ExpressionBase):
@@ -1098,10 +1107,25 @@ class Literal(ExpressionBase):
     subdenomination: Optional[str] = Field(default=None)
     node_type: typing.Literal[NodeType.LITERAL] = Field(alias="nodeType")
 
-    def to_solidity(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0, config: Optional[SolidityConfig] = None):
+        if config is None:
+            config = SolidityConfig()
         subdenomination = f" {self.subdenomination}" if self.subdenomination else ""
+
         if self.kind == "string":
-            return f"{' ' * spaces_count}{repr(self.value)}{subdenomination}"
+            if config.quote_preference == QuotePreference.SINGLE:
+                quote_char = "'"
+            else:
+                quote_char = '"'
+
+            if quote_char == "'":
+                escaped_value = self.value.replace("'", "\\'").replace('\\"', '"')
+            else:
+                escaped_value = self.value.replace('"', '\\"').replace("\\'", "'")
+            result = f"{' ' * spaces_count}{quote_char}{escaped_value}{quote_char}{subdenomination}"
+            print(f"Literal value: {result}")
+            return result
+
         return (
             super().to_solidity(spaces_count)
             + f"{' ' * spaces_count}{self.value}{subdenomination}"

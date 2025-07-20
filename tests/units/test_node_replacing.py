@@ -98,6 +98,6 @@ class ContractToAstTestCase(unittest.TestCase):
 
         generated = ast.to_solidity()
 
-        source = expected_source_code.replace("\n", "").replace('"', "'")
+        source = expected_source_code.replace("\n", "")
         generated = generated.replace("\n", "")
         self.assertEqual(source, generated)

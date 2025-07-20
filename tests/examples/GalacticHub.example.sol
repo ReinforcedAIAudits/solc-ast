@@ -19,20 +19,20 @@ contract GalacticHub {
     }
 
     function withdraw(uint256 amount) public {
-        require(userBalances[msg.sender] >= amount, 'Insufficient balance');
+        require(userBalances[msg.sender] >= amount, "Insufficient balance");
         userBalances[msg.sender] -= amount;
         totalSupply -= amount;
         payable(msg.sender).transfer(amount);
     }
 
     function transfer(address recipient, uint256 amount) public {
-        require(userBalances[msg.sender] >= amount, 'Insufficient balance');
+        require(userBalances[msg.sender] >= amount, "Insufficient balance");
         userBalances[msg.sender] -= amount;
         userBalances[recipient] += amount;
     }
 
     function setFeePercentage(uint256 newFee) public {
-        require(msg.sender == owner, 'Only the owner can set the fee percentage');
+        require(msg.sender == owner, "Only the owner can set the fee percentage");
         feePercentage = newFee;
     }
 }

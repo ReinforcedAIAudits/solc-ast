@@ -40,7 +40,7 @@ class AstToSourceTestCase(unittest.TestCase):
             )
 
         generated = ast_with_comments.to_solidity()
-        source = source_code.replace("\n", "").replace('"', "'")
+        source = source_code.replace("\n", "")
         generated = generated.replace("\n", "")
 
         self.assertEqual(source, generated)

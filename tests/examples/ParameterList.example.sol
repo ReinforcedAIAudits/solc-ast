@@ -8,7 +8,7 @@ contract FundsManager {
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event FundsDeposited(address indexed from, uint256 amount);
     modifier onlyOwner() {
-        require(msg.sender == owner, 'Not the owner');
+        require(msg.sender == owner, "Not the owner");
         _;
     }
     constructor() {
@@ -17,13 +17,13 @@ contract FundsManager {
     }
 
     function pullFunds(uint256 amount, address payable to) public onlyOwner {
-        require(address(this).balance >= amount, 'Insufficient funds');
+        require(address(this).balance >= amount, "Insufficient funds");
         to.transfer(amount);
         emit TransferSent(msg.sender, to, amount);
     }
 
     function depositFunds() public payable {
-        require(msg.value > 0, 'Must send some ether');
+        require(msg.value > 0, "Must send some ether");
         emit FundsDeposited(msg.sender, msg.value);
     }
 
@@ -32,7 +32,7 @@ contract FundsManager {
     }
 
     function transferOwnership(address newOwner) public onlyOwner {
-        require(newOwner != address(0), 'New owner cannot be zero address');
+        require(newOwner != address(0), "New owner cannot be zero address");
         address previousOwner = owner;
         owner = newOwner;
         emit OwnershipTransferred(previousOwner, newOwner);

@@ -8,7 +8,7 @@ import solcx
 
 from solc_ast_parser.models import ast_models
 from solc_ast_parser.models.ast_models import SourceUnit
-from solc_ast_parser.models.base_ast_models import Comment, MultilineComment, NodeType
+from solc_ast_parser.models.base_ast_models import NodeType
 
 
 def compile_contract_from_source(source: str):

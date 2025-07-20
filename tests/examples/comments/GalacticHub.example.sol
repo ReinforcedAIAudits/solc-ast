@@ -27,7 +27,7 @@ contract GalacticHub {
     * @param amount amount to be withdrawn
     */
     function withdraw(uint256 amount) public {
-        require(userBalances[msg.sender] >= amount, 'Insufficient balance'); // Check if the user has enough balance
+        require(userBalances[msg.sender] >= amount, "Insufficient balance"); // Check if the user has enough balance
         userBalances[msg.sender] -= amount;
         totalSupply -= amount; // Decrease the total supply of the contract
         // Transfer the amount to the user
@@ -36,7 +36,7 @@ contract GalacticHub {
 
     // Transfer funds from one user to another
     function transfer(address recipient, uint256 amount) public {
-        require(userBalances[msg.sender] >= amount, 'Insufficient balance'); // Check if the user has enough balance
+        require(userBalances[msg.sender] >= amount, "Insufficient balance"); // Check if the user has enough balance
         userBalances[msg.sender] -= amount;
         userBalances[recipient] += amount; // Increase the recipient balance
     }
@@ -44,7 +44,7 @@ contract GalacticHub {
     // Set the fee percentage
     function setFeePercentage(uint256 newFee) public {
         // Only the owner can set the fee percentage
-        require(msg.sender == owner, 'Only the owner can set the fee percentage');
+        require(msg.sender == owner, "Only the owner can set the fee percentage");
         feePercentage = newFee;
     }
 }
