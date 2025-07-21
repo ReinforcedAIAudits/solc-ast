@@ -1,7 +1,5 @@
 from collections import deque
-import json
 import random
-import re
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import typing
 import solcx
@@ -306,3 +304,212 @@ def insert_node(
                 stack.append((field_value, current_node, field_name, None))
 
     return False
+
+
+def reorder_nodes(
+    ast_node: ast_models.ASTNode,
+    target_contract_name: Optional[str] = None,
+    node_order: Optional[List[Union[str, NodeType]]] = None,
+    custom_sort_key: Optional[Callable[[ast_models.ASTNode], Any]] = None,
+) -> bool:
+    if not hasattr(ast_node, "nodes"):
+        return False
+
+    success = False
+
+    for node in ast_node.nodes:
+        if node.node_type == NodeType.CONTRACT_DEFINITION:
+            if target_contract_name is None or node.name == target_contract_name:
+                success = (
+                    _reorder_contract_nodes(node, node_order, custom_sort_key)
+                    or success
+                )
+
+    return success
+
+
+def _reorder_contract_nodes(
+    contract_node: ast_models.ASTNode,
+    node_order: Optional[List[Union[str, NodeType]]] = None,
+    custom_sort_key: Optional[Callable[[ast_models.ASTNode], Any]] = None,
+) -> bool:
+    if not hasattr(contract_node, "nodes") or not contract_node.nodes:
+        return False
+
+    original_nodes = contract_node.nodes.copy()
+
+    try:
+        if custom_sort_key:
+            contract_node.nodes.sort(key=custom_sort_key)
+        elif node_order:
+            contract_node.nodes.sort(
+                key=lambda node: _get_node_order_index(node, node_order)
+            )
+        else:
+            contract_node.nodes.sort(key=_default_node_sort_key)
+
+        return True
+
+    except Exception:
+        contract_node.nodes = original_nodes
+        return False
+
+
+def _get_node_order_index(
+    node: ast_models.ASTNode, node_order: List[Union[str, NodeType]]
+) -> int:
+    if hasattr(node, "name") and node.name in node_order:
+        return node_order.index(node.name)
+
+    if node.node_type in node_order:
+        return node_order.index(node.node_type)
+
+    return len(node_order)
+
+
+def _default_node_sort_key(node: ast_models.ASTNode) -> Tuple[int, str]:
+    type_priority = {
+        NodeType.STRUCT_DEFINITION: 0,
+        NodeType.ENUM_DEFINITION: 1,
+        NodeType.VARIABLE_DECLARATION: 2,
+        NodeType.EVENT_DEFINITION: 3,
+        NodeType.ERROR_DEFINITION: 4,
+        NodeType.FUNCTION_DEFINITION: 5,
+        NodeType.MODIFIER_DEFINITION: 6,
+    }
+
+    priority = type_priority.get(node.node_type, 999)
+    name = getattr(node, "name", "")
+
+    return (priority, name)
+
+
+def reorder_nodes_by_names(
+    ast_node: ast_models.ASTNode,
+    ordered_names: List[str],
+    target_contract_name: Optional[str] = None,
+) -> bool:
+    return reorder_nodes(
+        ast_node=ast_node,
+        target_contract_name=target_contract_name,
+        node_order=ordered_names,
+    )
+
+
+def reorder_nodes_by_types(
+    ast_node: ast_models.ASTNode,
+    ordered_types: List[NodeType],
+    target_contract_name: Optional[str] = None,
+) -> bool:
+    return reorder_nodes(
+        ast_node=ast_node,
+        target_contract_name=target_contract_name,
+        node_order=ordered_types,
+    )
+
+
+def group_nodes_by_type(
+    ast_node: ast_models.ASTNode, target_contract_name: Optional[str] = None
+) -> bool:
+    return reorder_nodes(ast_node=ast_node, target_contract_name=target_contract_name)
+
+
+def shuffle_nodes_randomly(
+    ast_node: ast_models.ASTNode,
+    node_types: List[NodeType],
+    target_contract_name: Optional[str] = None,
+    seed: Optional[int] = None,
+) -> bool:
+    if seed is not None:
+        random.seed(seed)
+
+    if not hasattr(ast_node, "nodes"):
+        return False
+
+    success = False
+
+    for node in ast_node.nodes:
+        if node.node_type == NodeType.CONTRACT_DEFINITION:
+            if target_contract_name is None or node.name == target_contract_name:
+                success = _shuffle_contract_nodes_randomly(node, node_types) or success
+
+    return success
+
+
+def _shuffle_contract_nodes_randomly(
+    contract_node: ast_models.ASTNode,
+    node_types: List[NodeType],
+) -> bool:
+    if not hasattr(contract_node, "nodes") or not contract_node.nodes:
+        return False
+
+    original_nodes = contract_node.nodes.copy()
+
+    try:
+        nodes_to_shuffle = []
+        other_nodes = []
+
+        for node in contract_node.nodes:
+            if node.node_type in node_types:
+                nodes_to_shuffle.append(node)
+            else:
+                other_nodes.append(node)
+
+        random.shuffle(nodes_to_shuffle)
+
+        new_nodes = []
+        shuffle_index = 0
+
+        for original_node in original_nodes:
+            if original_node.node_type in node_types:
+                new_nodes.append(nodes_to_shuffle[shuffle_index])
+                shuffle_index += 1
+            else:
+                new_nodes.append(original_node)
+
+        contract_node.nodes = new_nodes
+        return True
+
+    except Exception:
+        contract_node.nodes = original_nodes
+        return False
+
+
+def shuffle_functions_and_storages(
+    ast_node: ast_models.ASTNode,
+    target_contract_name: Optional[str] = None,
+    seed: Optional[int] = None,
+) -> bool:
+    return shuffle_nodes_randomly(
+        ast_node=ast_node,
+        node_types=[NodeType.FUNCTION_DEFINITION, NodeType.VARIABLE_DECLARATION],
+        target_contract_name=target_contract_name,
+        seed=seed,
+    )
+
+
+def shuffle_all_nodes_randomly(
+    ast_node: ast_models.ASTNode,
+    target_contract_name: Optional[str] = None,
+    seed: Optional[int] = None,
+) -> bool:
+    if seed is not None:
+        random.seed(seed)
+
+    if not hasattr(ast_node, "nodes"):
+        return False
+
+    success = False
+
+    for node in ast_node.nodes:
+        if node.node_type == NodeType.CONTRACT_DEFINITION:
+            if target_contract_name is None or node.name == target_contract_name:
+                if hasattr(node, "nodes") and node.nodes:
+                    original_nodes = node.nodes.copy()
+                    try:
+                        random.shuffle(node.nodes)
+                        success = True
+                    except Exception:
+                        node.nodes = original_nodes
+
+    return success
