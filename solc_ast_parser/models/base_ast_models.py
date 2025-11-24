@@ -9,8 +9,15 @@ class QuotePreference(enum.StrEnum):
     SINGLE = "single"
 
 
+class SingleStatementBraces(enum.StrEnum):
+    ALWAYS = "always"  # Always use braces
+    NEVER = "never"    # Never use braces for single statements
+    AUTO = "auto"      # Use braces based on content complexity
+
+
 class SolidityConfig(BaseModel):
     quote_preference: QuotePreference = QuotePreference.DOUBLE
+    single_statement_braces: SingleStatementBraces = SingleStatementBraces.ALWAYS
 
 
 class NodeType(enum.StrEnum):

@@ -16,6 +16,7 @@ from .base_ast_models import (
     TypeDescriptions,
     SolidityConfig,
     QuotePreference,
+    SingleStatementBraces,
 )
 
 ASTNode = Union[
@@ -124,6 +125,25 @@ def build_function_header(node: ASTNode, spaces_count=0):
         return f"{' ' * spaces_count}{node.kind}{name}({node.parameters.to_solidity()}){visibility}{virtual}{mutability}{overrides}{modifiers}{return_params}"
 
 
+def _format_single_statement_body(
+    statement: Statement, spaces_count: int, config: SolidityConfig
+) -> str:
+    """Format a single statement body for if/while/for statements according to config."""
+    if statement.node_type == NodeType.BLOCK:
+        # Block statements always use braces
+        return f" {{\n{statement.to_solidity(spaces_count=spaces_count + 4)}{' ' * spaces_count}}}"
+    else:
+        # Single statement - check config for brace preference
+        if config.single_statement_braces == SingleStatementBraces.ALWAYS:
+            return f" {{\n{statement.to_solidity(spaces_count=spaces_count + 4)}{' ' * spaces_count}}}"
+        else:
+            # No braces for single statements
+            statement_code = statement.to_solidity(spaces_count=spaces_count + 4)
+            if not statement_code.endswith("\n"):
+                statement_code += "\n"
+            return f"\n{statement_code}"
+
+
 class SourceUnit(NodeBase):
     license: Optional[str] = Field(default=None)
     nodes: List[ASTNode]
@@ -141,16 +161,16 @@ class SourceUnit(NodeBase):
     ):
         if config is None:
             config = SolidityConfig()
-        result = super().to_solidity(spaces_count)
+        result = super().to_solidity(spaces_count=spaces_count)
         for node in self.nodes:
             if hasattr(node, "to_solidity"):
                 if "config" in node.to_solidity.__code__.co_varnames:
-                    result += node.to_solidity(spaces_count, config=config)
+                    result += node.to_solidity(spaces_count=spaces_count, config=config)
                 else:
-                    result += node.to_solidity(spaces_count)
+                    result += node.to_solidity(spaces_count=spaces_count)
             else:
                 result += str(node)
-                
+
         return result
 
 
@@ -159,7 +179,7 @@ class PragmaDirective(NodeBase):
     node_type: typing.Literal[NodeType.PRAGMA_DIRECTIVE] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        result = super().to_solidity(spaces_count)
+        result = super().to_solidity(spaces_count=spaces_count)
         return (
             result
             + f"{' ' * spaces_count}pragma {self.literals[0]} {''.join(self.literals[1:])};\n\n"
@@ -181,7 +201,7 @@ class ImportDirective(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}import \"{self.absolute_path}\";\n"
         )
 
@@ -215,15 +235,15 @@ class ContractDefinition(NodeBase):
             base_contracts = [base.to_solidity() for base in self.base_contracts]
             base_contracts = f" is {', '.join(base_contracts)}"
         code = (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{self.contract_kind} {self.name}{base_contracts} {{{f' // {self.comment.text}' if self.comment else ''}\n"
         )
         spaces_count = 4
         for contract_node in self.nodes:
             if contract_node.node_type == NodeType.VARIABLE_DECLARATION:
-                code += f"{contract_node.to_solidity(spaces_count)};{f' // {contract_node.comment.text}' if contract_node.comment else ''}\n"
+                code += f"{contract_node.to_solidity(spaces_count=spaces_count)};{f' // {contract_node.comment.text}' if contract_node.comment else ''}\n"
                 continue
-            code += contract_node.to_solidity(spaces_count)
+            code += contract_node.to_solidity(spaces_count=spaces_count)
         code += "}\n\n"
 
         return code
@@ -239,7 +259,10 @@ class IdentifierPath(NodeBase):
     node_type: typing.Literal[NodeType.IDENTIFIER_PATH] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}{self.name}"
+        return (
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{' ' * spaces_count}{self.name}"
+        )
 
 
 class InheritanceSpecifier(NodeBase):
@@ -249,7 +272,10 @@ class InheritanceSpecifier(NodeBase):
     node_type: typing.Literal[NodeType.INHERITANCE_SPECIFIER] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        result = super().to_solidity(spaces_count) + self.base_name.to_solidity()
+        result = (
+            super().to_solidity(spaces_count=spaces_count)
+            + self.base_name.to_solidity()
+        )
         if self.arguments:
             args = [arg.to_solidity() for arg in self.arguments]
             result += f"({', '.join(args)})"
@@ -278,7 +304,10 @@ class UsingForDirective(NodeBase):
     node_type: typing.Literal[NodeType.USING_FOR_DIRECTIVE] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        result = super().to_solidity(spaces_count) + f"{' ' * spaces_count}using "
+        result = (
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{' ' * spaces_count}using "
+        )
 
         if self.library_name:
             result += self.library_name.to_solidity()
@@ -313,7 +342,7 @@ class StructDefinition(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         code = (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}struct {self.name} {{\n"
         )
         spaces_count += 4
@@ -336,7 +365,7 @@ class EnumDefinition(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         result = (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}enum {self.name} {{\n"
         )
         spaces_count += 4
@@ -354,7 +383,10 @@ class EnumValue(NodeBase):
     node_type: typing.Literal[NodeType.ENUM_VALUE] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}{self.name}"
+        return (
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{' ' * spaces_count}{self.name}"
+        )
 
 
 class UserDefinedValueTypeDefinition(NodeBase):
@@ -369,7 +401,7 @@ class UserDefinedValueTypeDefinition(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}struct {self.name} {{\n{' ' * spaces_count}}}\n"
         )
 
@@ -430,12 +462,12 @@ class FunctionDefinition(NodeBase):
     node_type: typing.Literal[NodeType.FUNCTION_DEFINITION] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        result = super().to_solidity(spaces_count) + build_function_header(
+        result = super().to_solidity(spaces_count=spaces_count) + build_function_header(
             self, spaces_count
         )
         if not self.body:
             return result + ";\n\n"
-        body = self.body.to_solidity(spaces_count + 4)
+        body = self.body.to_solidity(spaces_count=spaces_count + 4)
         if body:
             result += f" {{\n{body}{' ' * spaces_count}}}\n\n"
         else:
@@ -474,7 +506,7 @@ class VariableDeclaration(TypeBase):
         if self.value:
             value = f" = {self.value.to_solidity()}"
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}{self.type_name.to_solidity()}{visibility}{constant}{storage_location} {self.name}{value}"
         )
 
@@ -496,11 +528,11 @@ class ModifierDefinition(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         result = (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}modifier {self.name}({self.parameters.to_solidity()}) {{\n"
         )
         spaces_count += 4
-        result += self.body.to_solidity(spaces_count)
+        result += self.body.to_solidity(spaces_count=spaces_count)
         spaces_count -= 4
         result += f"{' ' * spaces_count}}}\n"
         return result
@@ -532,7 +564,7 @@ class EventDefinition(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}event {self.name}({self.parameters.to_solidity()});\n"
         )
 
@@ -547,7 +579,7 @@ class ErrorDefinition(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}error {self.name}({self.parameters.to_solidity()});\n"
         )
 
@@ -560,10 +592,13 @@ class ElementaryTypeName(TypeBase):
     def to_solidity(self, spaces_count=0, is_parameter=False):
         if self.name == "address" and self.state_mutability == "payable":
             return (
-                super().to_solidity(spaces_count)
+                super().to_solidity(spaces_count=spaces_count)
                 + f"{' ' * spaces_count}{f'{self.name} ' if is_parameter else ''}{self.state_mutability}"
             )
-        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}{self.name}"
+        return (
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{' ' * spaces_count}{self.name}"
+        )
 
 
 class UserDefinedTypeName(TypeBase):
@@ -575,7 +610,7 @@ class UserDefinedTypeName(TypeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}{self.path_node.name}"
         )
 
@@ -588,7 +623,10 @@ class FunctionTypeName(TypeBase):
     node_type: typing.Literal[NodeType.FUNCTION_TYPE_NAME] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        return super().to_solidity(spaces_count) + f"{build_function_header(self)};\n"
+        return (
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{build_function_header(self)};\n"
+        )
 
 
 class Mapping(TypeBase):
@@ -604,7 +642,7 @@ class Mapping(TypeBase):
         key_type = self.key_type.to_solidity()
         value_type = self.value_type.to_solidity()
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}mapping({key_type} => {value_type})"
         )
 
@@ -616,7 +654,7 @@ class ArrayTypeName(TypeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}{self.base_type.to_solidity()}[{self.length.to_solidity() if self.length else ''}]"
         )
 
@@ -633,8 +671,8 @@ class InlineAssembly(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
-            + f"{' ' * spaces_count}assembly {self.AST.to_solidity(spaces_count)}"
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{' ' * spaces_count}assembly {self.AST.to_solidity(spaces_count=spaces_count)}"
         )
 
 
@@ -645,13 +683,13 @@ class Block(NodeBase):
     )
 
     def to_solidity(self, spaces_count=0):
-        result = super().to_solidity(spaces_count)
+        result = super().to_solidity(spaces_count=spaces_count)
         for statement in self.statements:
             if not statement.node_type in (
                 NodeType.COMMENT,
                 NodeType.MULTILINE_COMMENT,
             ):
-                st = statement.to_solidity(spaces_count)
+                st = statement.to_solidity(spaces_count=spaces_count)
                 if (
                     statement.node_type != NodeType.INLINE_ASSEMBLY
                     and not st.endswith(";\n")
@@ -662,7 +700,7 @@ class Block(NodeBase):
                 result += st
 
             else:
-                result += statement.to_solidity(spaces_count)
+                result += statement.to_solidity(spaces_count=spaces_count)
         return result
 
 
@@ -670,7 +708,9 @@ class PlaceholderStatement(NodeBase):
     node_type: typing.Literal[NodeType.PLACEHOLDER_STATEMENT] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}_;\n"
+        return (
+            super().to_solidity(spaces_count=spaces_count) + f"{' ' * spaces_count}_;\n"
+        )
 
 
 class IfStatement(NodeBase):
@@ -679,25 +719,27 @@ class IfStatement(NodeBase):
     false_body: Optional[Statement] = Field(default=None, alias="falseBody")
     node_type: typing.Literal[NodeType.IF_STATEMENT] = Field(alias="nodeType")
 
-    def to_solidity(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0, config: Optional[SolidityConfig] = None):
+        if config is None:
+            config = SolidityConfig()
+
         result = (
-            super().to_solidity(spaces_count)
-            + f"{' ' * spaces_count}if ({self.condition.to_solidity()}) {{\n"
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{' ' * spaces_count}if ({self.condition.to_solidity()})"
         )
-        spaces_count += 4
-        result += self.true_body.to_solidity(spaces_count)
-        spaces_count -= 4
+
+        # Format true body
+        result += _format_single_statement_body(self.true_body, spaces_count, config)
 
         if self.false_body:
-            result += f"{' ' * spaces_count}}} else {{\n"
-            spaces_count += 4
-            result += self.false_body.to_solidity(spaces_count)
-            spaces_count -= 4
+            result += f" else"
+            result += _format_single_statement_body(
+                self.false_body, spaces_count, config
+            )
 
-        if not result.endswith(";\n") and not result.endswith("}\n"):
-            result += f";\n"
+        if not result.endswith("\n"):
+            result += "\n"
 
-        result += f"{' ' * spaces_count}}}\n"
         return result
 
 
@@ -708,12 +750,15 @@ class TryCatchClause(NodeBase):
     node_type: typing.Literal[NodeType.TRY_CATCH_CLAUSE] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        result = super().to_solidity(spaces_count) + f"{' ' * spaces_count}catch "
+        result = (
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{' ' * spaces_count}catch "
+        )
         if self.parameters:
             result += f"({self.parameters.to_solidity()}) "
         result += "{\n"
         spaces_count += 4
-        result += self.block.to_solidity(spaces_count)
+        result += self.block.to_solidity(spaces_count=spaces_count)
         spaces_count -= 4
         result += f"{' ' * spaces_count}}}\n"
         return result
@@ -725,7 +770,9 @@ class TryStatement(NodeBase):
     node_type: typing.Literal[NodeType.TRY_STATEMENT] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        result = super().to_solidity(spaces_count) + f"{' ' * spaces_count}try "
+        result = (
+            super().to_solidity(spaces_count=spaces_count) + f"{' ' * spaces_count}try "
+        )
         if self.external_call:
             result += self.external_call.to_solidity()
         if self.clauses:
@@ -736,12 +783,12 @@ class TryStatement(NodeBase):
             )
             result += " {\n"
 
-            result += self.clauses[0].block.to_solidity(spaces_count + 4)
+            result += self.clauses[0].block.to_solidity(spaces_count=spaces_count + 4)
 
             result += f"{' ' * spaces_count}}}"
 
         for clause in self.clauses[1:]:
-            result += clause.to_solidity(spaces_count)
+            result += clause.to_solidity(spaces_count=spaces_count)
 
         return result
 
@@ -751,15 +798,20 @@ class WhileStatement(NodeBase):  # DoWhileStatement
     body: Statement
     node_type: typing.Literal[NodeType.WHILE_STATEMENT] = Field(alias="nodeType")
 
-    def to_solidity(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0, config: Optional[SolidityConfig] = None):
+        if config is None:
+            config = SolidityConfig()
+
         result = (
-            super().to_solidity(spaces_count)
-            + f"{' ' * spaces_count}while ({self.condition.to_solidity()}) {{\n"
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{' ' * spaces_count}while ({self.condition.to_solidity()})"
         )
-        spaces_count += 4
-        result += self.body.to_solidity(spaces_count)
-        spaces_count -= 4
-        result += f"{' ' * spaces_count}}}\n"
+
+        result += _format_single_statement_body(self.body, spaces_count, config)
+
+        if not result.endswith("\n"):
+            result += "\n"
+
         return result
 
 
@@ -777,21 +829,27 @@ class ForStatement(NodeBase):
     )
     node_type: typing.Literal[NodeType.FOR_STATEMENT] = Field(alias="nodeType")
 
-    def to_solidity(self, spaces_count=0):
-        result = super().to_solidity(spaces_count) + f"{' ' * spaces_count}for ("
+    def to_solidity(self, spaces_count=0, config: Optional[SolidityConfig] = None):
+        if config is None:
+            config = SolidityConfig()
+
+        result = (
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{' ' * spaces_count}for ("
+        )
         if self.intialization_expression:
             result += f"{self.intialization_expression.to_solidity()}; "
         if self.condition:
             result += f"{self.condition.to_solidity()}; "
         if self.loop_expression:
             result += f"{self.loop_expression.to_solidity()}"
-        result += f") {{\n"
-        spaces_count += 4
-        result += self.body.to_solidity(spaces_count)
-        if not result.endswith(";\n") and not result.endswith("}\n"):
-            result += f";\n"
-        spaces_count -= 4
-        result += f"{' ' * spaces_count}}}\n"
+        result += ")"
+
+        result += _format_single_statement_body(self.body, spaces_count, config)
+
+        if not result.endswith("\n"):
+            result += "\n"
+
         return result
 
 
@@ -799,14 +857,20 @@ class Continue(NodeBase):
     node_type: typing.Literal[NodeType.CONTINUE] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}continue"
+        return (
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{' ' * spaces_count}continue"
+        )
 
 
 class Break(NodeBase):
     node_type: typing.Literal[NodeType.BREAK] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}break"
+        return (
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{' ' * spaces_count}break"
+        )
 
 
 class Return(NodeBase):
@@ -819,18 +883,24 @@ class Return(NodeBase):
     def to_solidity(self, spaces_count=0):
         if self.expression:
             return (
-                super().to_solidity(spaces_count)
+                super().to_solidity(spaces_count=spaces_count)
                 + f"{' ' * spaces_count}return {self.expression.to_solidity()};\n"
             )
         else:
-            return super().to_solidity(spaces_count) + f"{' ' * spaces_count}return"
+            return (
+                super().to_solidity(spaces_count=spaces_count)
+                + f"{' ' * spaces_count}return"
+            )
 
 
 class Throw(NodeBase):
     node_type: typing.Literal[NodeType.THROW] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}throw;\n"
+        return (
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{' ' * spaces_count}throw;\n"
+        )
 
 
 class EmitStatement(NodeBase):
@@ -839,7 +909,7 @@ class EmitStatement(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * (spaces_count)}emit {self.event_call.to_solidity()};\n"
         )
 
@@ -850,7 +920,7 @@ class RevertStatement(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}revert {self.error_call.to_solidity()};\n"
         )
 
@@ -880,7 +950,7 @@ class VariableDeclarationStatement(NodeBase):
         left = declarations_str
         right = f" = {self.initial_value.to_solidity()}" if self.initial_value else ""
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * (spaces_count)}{left}{right}"
             + comment
         )
@@ -892,7 +962,7 @@ class ExpressionStatement(NodeBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * (spaces_count)}{self.expression.to_solidity()}"
         )
 
@@ -905,7 +975,7 @@ class Conditional(ExpressionBase):  # TODO maybe errors
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}{self.condition.to_solidity()} ? {self.true_expression.to_solidity()} : {self.false_expression.to_solidity()}"
         )
 
@@ -918,7 +988,7 @@ class Assignment(ExpressionBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}{self.left_hand_side.to_solidity()} {self.operator} {self.right_hand_side.to_solidity()}"
         )
 
@@ -938,7 +1008,10 @@ class TupleExpression(ExpressionBase):
         else:
             res_tuple = f"({', '.join(res_tuple)})"
 
-        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}{res_tuple}"
+        return (
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{' ' * spaces_count}{res_tuple}"
+        )
 
 
 class UnaryOperation(ExpressionBase):
@@ -951,12 +1024,12 @@ class UnaryOperation(ExpressionBase):
     def to_solidity(self, spaces_count=0):
         if self.prefix:
             return (
-                super().to_solidity(spaces_count)
+                super().to_solidity(spaces_count=spaces_count)
                 + f"{' ' * spaces_count}{self.operator}{' ' if self.operator == 'delete' else ''}{self.sub_expression.to_solidity()}"
             )
         else:
             return (
-                super().to_solidity(spaces_count)
+                super().to_solidity(spaces_count=spaces_count)
                 + f"{' ' * spaces_count}{self.sub_expression.to_solidity()}{self.operator}"
             )
 
@@ -971,7 +1044,7 @@ class BinaryOperation(ExpressionBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}{self.left_expression.to_solidity()} {self.operator} {self.right_expression.to_solidity()}"
         )
 
@@ -993,7 +1066,7 @@ class FunctionCall(ExpressionBase):
         else:
             arguments_str = ", ".join(arguments)
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}{self.expression.to_solidity()}({arguments_str})"
         )
 
@@ -1010,7 +1083,7 @@ class FunctionCallOptions(ExpressionBase):
             for name, option in zip(self.names, self.options)
         ]
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}{self.expression.to_solidity()}{{{' ,'.join(options)}}}"
         )
 
@@ -1021,7 +1094,7 @@ class NewExpression(ExpressionBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}new {self.type_name.to_solidity()}"
         )
 
@@ -1037,7 +1110,7 @@ class MemberAccess(ExpressionBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}{self.expression.to_solidity()}.{self.member_name}"
         )
 
@@ -1051,7 +1124,7 @@ class IndexAccess(ExpressionBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}{self.base_expression.to_solidity()}"
             + f"[{self.index_expression.to_solidity() if self.index_expression else ''}]"
         )
@@ -1067,7 +1140,7 @@ class IndexRangeAccess(ExpressionBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}{self.base_expression.to_solidity()}"
             + f"[{self.start_expression.to_solidity()}:{self.end_expression.to_solidity()}]"
         )
@@ -1084,7 +1157,10 @@ class Identifier(TypeBase):
     node_type: typing.Literal[NodeType.IDENTIFIER] = Field(alias="nodeType")
 
     def to_solidity(self, spaces_count=0):
-        return super().to_solidity(spaces_count) + f"{' ' * spaces_count}{self.name}"
+        return (
+            super().to_solidity(spaces_count=spaces_count)
+            + f"{' ' * spaces_count}{self.name}"
+        )
 
 
 class ElementaryTypeNameExpression(ExpressionBase):
@@ -1095,7 +1171,7 @@ class ElementaryTypeNameExpression(ExpressionBase):
 
     def to_solidity(self, spaces_count=0):
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}{self.type_name.to_solidity()}"
         )
 
@@ -1123,11 +1199,10 @@ class Literal(ExpressionBase):
             else:
                 escaped_value = self.value.replace('"', '\\"').replace("\\'", "'")
             result = f"{' ' * spaces_count}{quote_char}{escaped_value}{quote_char}{subdenomination}"
-            print(f"Literal value: {result}")
             return result
 
         return (
-            super().to_solidity(spaces_count)
+            super().to_solidity(spaces_count=spaces_count)
             + f"{' ' * spaces_count}{self.value}{subdenomination}"
         )
 

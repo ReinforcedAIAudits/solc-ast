@@ -68,7 +68,7 @@ class AstToSourceTestCase(unittest.TestCase):
         contract_name = list(solc_output.keys())[0]
         ast = SourceUnit(**solc_output[contract_name]["ast"])
         try:
-            generated = ast.to_solidity(SolidityConfig(quote_preference=QuotePreference.SINGLE))
+            generated = ast.to_solidity(config=SolidityConfig(quote_preference=QuotePreference.SINGLE))
         except Exception as ex:
             self.fail(
                 f"Exception occurred while parsing {contract_name} contract code: {ex}"
