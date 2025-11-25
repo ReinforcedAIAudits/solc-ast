@@ -1,5 +1,6 @@
 pragma solidity ^0.8.0;
 
+uint256 constant WAD = 1e18;
 contract Relayer {
     mapping(bytes => bool) executed;
     address target;

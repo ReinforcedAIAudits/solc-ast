@@ -107,7 +107,7 @@ class Comment(BaseModel):
     text: str
     is_pure: bool = Field(default=False, alias="isPure")
 
-    def to_solidity(self, spaces_count: int = 0) -> str:
+    def to_solidity(self, spaces_count: int = 0, config: SolidityConfig | None = None) -> str:
         return f"{' ' * spaces_count}// {self.text}\n"
 
 
@@ -117,7 +117,7 @@ class MultilineComment(BaseModel):
     node_type: NodeType = Field(alias="nodeType")
     text: str
 
-    def to_solidity(self, spaces_count: int = 0) -> str:
+    def to_solidity(self, spaces_count: int = 0, config: SolidityConfig | None = None) -> str:
         return f"{' ' * spaces_count}{self.text}\n"
 
 
@@ -135,7 +135,7 @@ class NodeBase(BaseModel, Node):
     comment: Optional[Comment] = Field(default=None)
     documentation: Optional[str] = Field(default=None)
 
-    def to_solidity(self, spaces_count=0):
+    def to_solidity(self, spaces_count=0, config: SolidityConfig | None = None):
         return (
             f"{' ' * spaces_count}/// {self.documentation}\n"
             if self.documentation
@@ -151,7 +151,7 @@ class YulBase(BaseModel):
     native_src: str = Field(alias="nativeSrc")
     documentation: Optional[str] = Field(default=None)
 
-    def to_solidity(self, spaces_count=0, new_line: bool = False):
+    def to_solidity(self, spaces_count=0, new_line: bool = False, config: SolidityConfig | None = None):
         return (
             f"{' ' * spaces_count}/// {self.documentation}\n"
             if self.documentation
